@@ -520,9 +520,9 @@
 
         const reasonText = cancellationReasonOptions[cancellationReasonTemplate];
 
-        let englishReport = '';
-        let chineseReport = '';
-        let koreanReport = '';
+        let englishReport = 'Thank you for waiting. The bet has been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.\n\n';
+        let chineseReport = '注单已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。\n\n';
+        let koreanReport = '기다려 주셔서 감사합니다. 베팅이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.\n\n';
 
         cancellations.forEach((item, index) => {
           const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
