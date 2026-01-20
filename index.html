@@ -50,6 +50,12 @@
     };
 
     const BettingSettlementAnalyzer = () => {
+      // Random name placeholder
+      const [namePlaceholder] = useState(() => {
+        const names = ['Alex', 'Emma', 'Leo', 'Mia', 'Noah', 'Sophia', 'Oliver', 'Ava', 'Liam', 'Isabella'];
+        return names[Math.floor(Math.random() * names.length)];
+      });
+
       const [jsonData, setJsonData] = useState('');
       const [analysisType, setAnalysisType] = useState('resettlement');
       const [resettlementReasonTemplate, setResettlementReasonTemplate] = useState('');
@@ -63,6 +69,8 @@
       const [newReason, setNewReason] = useState({ english: '', chinese: '', korean: '' });
       const [managingReasonType, setManagingReasonType] = useState('resettlement');
       const [deleteConfirmKey, setDeleteConfirmKey] = useState(null);
+      const [showPerEventReasons, setShowPerEventReasons] = useState(false);
+      const [perEventReasons, setPerEventReasons] = useState({});
 
       const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
         const stored = localStorage.getItem('customResettlementReasons');
@@ -459,7 +467,7 @@
         return cancellations;
       };
 
-      const generateResettlementReports = (resettlements) => {
+      const generateResettlementReports = (resettlements, customReasons = null) => {
         if (resettlements.length === 0) {
           return {
             english: 'No resettlement records.',
@@ -468,7 +476,7 @@
           };
         }
 
-        const reasonText = resettlementReasonOptions[resettlementReasonTemplate];
+        const defaultReasonText = resettlementReasonOptions[resettlementReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
         let englishReport = `Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
@@ -483,6 +491,10 @@
           const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
           const statusHistoryCN = translateStatusHistory(item.statusHistory, 'chinese');
           const statusHistoryKR = translateStatusHistory(item.statusHistory, 'korean');
+
+          // Use custom reason for this event if provided, otherwise use default
+          const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : resettlementReasonTemplate;
+          const reasonText = resettlementReasonOptions[reasonKey];
 
           englishReport += `Bet ID: ${item.betId}\n`;
           englishReport += `Event: ${eventLabel}${item.eventName}\n`;
@@ -519,7 +531,7 @@
         };
       };
 
-      const generateCancellationReports = (cancellations) => {
+      const generateCancellationReports = (cancellations, customReasons = null) => {
         if (cancellations.length === 0) {
           return {
             english: 'No cancellation records.',
@@ -528,7 +540,7 @@
           };
         }
 
-        const reasonText = cancellationReasonOptions[cancellationReasonTemplate];
+        const defaultReasonText = cancellationReasonOptions[cancellationReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
         let englishReport = `Thank you for waiting. The bet has been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
@@ -539,6 +551,10 @@
           const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
           const eventLabelCN = cancellations.length > 1 ? `赛事${index + 1}- ` : '';
           const eventLabelKR = cancellations.length > 1 ? `이벤트${index + 1}- ` : '';
+
+          // Use custom reason for this event if provided, otherwise use default
+          const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : cancellationReasonTemplate;
+          const reasonText = cancellationReasonOptions[reasonKey];
 
           englishReport += `Bet ID: ${item.betId}\n`;
           englishReport += `Event: ${eventLabel}${item.eventName}\n`;
@@ -580,6 +596,8 @@
 
         setLoading(true);
         setError('');
+        setShowPerEventReasons(false);
+        setPerEventReasons({});
 
         try {
           const data = JSON.parse(jsonData);
@@ -589,13 +607,19 @@
           }
 
           let reports = {};
+          let analyzedData = [];
+
           if (analysisType === 'resettlement') {
-            const resettlements = analyzeResettlements(data);
-            reports = generateResettlementReports(resettlements);
+            analyzedData = analyzeResettlements(data);
+            reports = generateResettlementReports(analyzedData);
           } else {
-            const cancellations = analyzeCancellations(data);
-            reports = generateCancellationReports(cancellations);
+            analyzedData = analyzeCancellations(data);
+            reports = generateCancellationReports(analyzedData);
           }
+
+          // Store analyzed data and event count for per-event editing
+          reports.analyzedData = analyzedData;
+          reports.eventCount = analyzedData.length;
 
           setResults(reports);
         } catch (e) {
@@ -603,6 +627,30 @@
         } finally {
           setLoading(false);
         }
+      };
+
+      const handleRegenerateWithCustomReasons = () => {
+        if (!results || !results.analyzedData) return;
+
+        const customReasonsArray = {};
+        Object.keys(perEventReasons).forEach(index => {
+          customReasonsArray[parseInt(index)] = perEventReasons[index];
+        });
+
+        let reports = {};
+        if (analysisType === 'resettlement') {
+          reports = generateResettlementReports(results.analyzedData, customReasonsArray);
+        } else {
+          reports = generateCancellationReports(results.analyzedData, customReasonsArray);
+        }
+
+        // Preserve analyzed data
+        reports.analyzedData = results.analyzedData;
+        reports.eventCount = results.eventCount;
+
+        setResults(reports);
+        setCopyStatus('报告已重新生成');
+        setTimeout(() => setCopyStatus(''), 2000);
       };
 
       const handleCopy = (language) => {
@@ -1036,7 +1084,7 @@
                     </label>
                     <input
                       type="text"
-                      placeholder="例如: Sunny （名字会显示在快速回复后面）"
+                      placeholder={`例如: ${namePlaceholder} （名字会显示在快速回复后面）`}
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1131,6 +1179,103 @@
                     </div>
                   )}
                 </div>
+
+                {results && results.eventCount > 1 && (
+                  <div className="mb-4">
+                    {!showPerEventReasons ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-blue-900">
+                              📝 检测到 {results.eventCount} 场赛事
+                            </div>
+                            <div className="text-xs text-blue-700 mt-1">
+                              当前所有赛事使用相同原因
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowPerEventReasons(true);
+                              // Initialize per-event reasons with default
+                              const initialReasons = {};
+                              for (let i = 0; i < results.eventCount; i++) {
+                                initialReasons[i] = analysisType === 'resettlement' ? resettlementReasonTemplate : cancellationReasonTemplate;
+                              }
+                              setPerEventReasons(initialReasons);
+                            }}
+                            className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 flex items-center text-sm"
+                          >
+                            <span className="mr-1">🔧</span>
+                            为每场赛事单独设置原因
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-gray-300 rounded-md p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-sm font-semibold text-gray-700">
+                            为每场赛事设置原因
+                          </div>
+                          <button
+                            onClick={() => setShowPerEventReasons(false)}
+                            className="text-gray-500 hover:text-gray-700 text-sm"
+                          >
+                            收起 ▲
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {results.analyzedData.map((item, index) => (
+                            <div key={index} className="bg-gray-50 p-3 rounded border border-gray-200">
+                              <div className="text-xs font-medium text-gray-600 mb-2">
+                                Event {index + 1}: {item.eventName}
+                              </div>
+                              <select
+                                value={perEventReasons[index] || ''}
+                                onChange={(e) => setPerEventReasons({ ...perEventReasons, [index]: e.target.value })}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {analysisType === 'resettlement' ? (
+                                  <>
+                                    <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                                    {Object.keys(resettlementReasonOptions).filter(k => k !== '').map(key => {
+                                      const reason = resettlementReasonOptions[key];
+                                      const isCustom = !defaultResettlementReasons[key];
+                                      return (
+                                        <option key={key} value={key}>
+                                          {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
+                                        </option>
+                                      );
+                                    })}
+                                  </>
+                                ) : (
+                                  <>
+                                    <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                                    {Object.keys(cancellationReasonOptions).filter(k => k !== '').map(key => {
+                                      const reason = cancellationReasonOptions[key];
+                                      const isCustom = !defaultCancellationReasons[key];
+                                      return (
+                                        <option key={key} value={key}>
+                                          {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
+                                        </option>
+                                      );
+                                    })}
+                                  </>
+                                )}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={handleRegenerateWithCustomReasons}
+                          className="w-full mt-3 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center justify-center"
+                        >
+                          <span className="mr-2">🔄</span>
+                          重新生成报告
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {results ? (
                   <div className="space-y-4">
