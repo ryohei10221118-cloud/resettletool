@@ -74,6 +74,11 @@
         return stored ? JSON.parse(stored) : {};
       });
 
+      const [userName, setUserName] = useState(() => {
+        const stored = localStorage.getItem('userName');
+        return stored || '';
+      });
+
       useEffect(() => {
         localStorage.setItem('customResettlementReasons', JSON.stringify(customResettlementReasons));
       }, [customResettlementReasons]);
@@ -81,6 +86,10 @@
       useEffect(() => {
         localStorage.setItem('customCancellationReasons', JSON.stringify(customCancellationReasons));
       }, [customCancellationReasons]);
+
+      useEffect(() => {
+        localStorage.setItem('userName', userName);
+      }, [userName]);
 
       const capitalizeFirstLetter = (str) => {
         if (!str) return str;
@@ -460,10 +469,11 @@
         }
 
         const reasonText = resettlementReasonOptions[resettlementReasonTemplate];
+        const nameSuffix = userName ? ` - ${userName}` : '';
 
-        let englishReport = 'Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.\n\n---\n\n';
-        let chineseReport = '注单已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。\n\n---\n\n';
-        let koreanReport = '기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.\n\n---\n\n';
+        let englishReport = `Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
+        let chineseReport = `注单已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
+        let koreanReport = `기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         resettlements.forEach((item, index) => {
           const eventLabel = resettlements.length > 1 ? `Event${index + 1}- ` : '';
@@ -480,8 +490,8 @@
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
           englishReport += `Last Update Time: ${formatDateTime(item.lastUpdateTime)}\n`;
-          englishReport += `Reason for Resettlement: ${reasonText.english}`;
-          if (index < resettlements.length - 1) englishReport += '\n\n---\n\n';
+          englishReport += `Reason for Resettlement: ${reasonText.english}\n`;
+          if (index < resettlements.length - 1) englishReport += '\n';
 
           chineseReport += `注单号：${item.betId}\n`;
           chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
@@ -489,8 +499,8 @@
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
           chineseReport += `最后更新时间：${formatDateTime(item.lastUpdateTime)}\n`;
-          chineseReport += `重新结算原因：${reasonText.chinese}`;
-          if (index < resettlements.length - 1) chineseReport += '\n\n---\n\n';
+          chineseReport += `重新结算原因：${reasonText.chinese}\n`;
+          if (index < resettlements.length - 1) chineseReport += '\n';
 
           koreanReport += `베팅 번호: ${item.betId}\n`;
           koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
@@ -498,8 +508,8 @@
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
           koreanReport += `마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n`;
-          koreanReport += `재정산 사유: ${reasonText.korean}`;
-          if (index < resettlements.length - 1) koreanReport += '\n\n---\n\n';
+          koreanReport += `재정산 사유: ${reasonText.korean}\n`;
+          if (index < resettlements.length - 1) koreanReport += '\n';
         });
 
         return {
@@ -519,10 +529,11 @@
         }
 
         const reasonText = cancellationReasonOptions[cancellationReasonTemplate];
+        const nameSuffix = userName ? ` - ${userName}` : '';
 
-        let englishReport = 'Thank you for waiting. The bet has been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.\n\n';
-        let chineseReport = '注单已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。\n\n';
-        let koreanReport = '기다려 주셔서 감사합니다. 베팅이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.\n\n';
+        let englishReport = `Thank you for waiting. The bet has been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
+        let chineseReport = `注单已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
+        let koreanReport = `기다려 주셔서 감사합니다. 베팅이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         cancellations.forEach((item, index) => {
           const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
@@ -535,7 +546,7 @@
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
           englishReport += `Reason of Cancelation: ${reasonText.english}\n`;
-          if (index < cancellations.length - 1) englishReport += '\n---\n\n';
+          if (index < cancellations.length - 1) englishReport += '\n';
 
           chineseReport += `注单号：${item.betId}\n`;
           chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
@@ -543,7 +554,7 @@
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
           chineseReport += `取消原因：${reasonText.chinese}\n`;
-          if (index < cancellations.length - 1) chineseReport += '\n---\n\n';
+          if (index < cancellations.length - 1) chineseReport += '\n';
 
           koreanReport += `베팅 ID: ${item.betId}\n`;
           koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
@@ -551,7 +562,7 @@
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
           koreanReport += `취소 사유: ${reasonText.korean}\n`;
-          if (index < cancellations.length - 1) koreanReport += '\n---\n\n';
+          if (index < cancellations.length - 1) koreanReport += '\n';
         });
 
         return {
@@ -784,6 +795,24 @@
 
                 <div className="p-6" style={modalContentStyle}>
                   <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        👤 绑定名字（会显示在快速回复后面）
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="例如: Sunny"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {userName && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          示例: Thank you for waiting... - {userName}
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         原因类型
