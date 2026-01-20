@@ -1,1113 +1,1166 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, AlertCircle, CheckCircle, Copy, Trash2, Settings, Plus, Edit2, X } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seamless Tool 结算分析器</title>
 
-const BettingSettlementAnalyzer = () => {
-  const [jsonData, setJsonData] = useState('');
-  const [analysisType, setAnalysisType] = useState('resettlement');
-  const [resettlementReasonTemplate, setResettlementReasonTemplate] = useState('');
-  const [cancellationReasonTemplate, setCancellationReasonTemplate] = useState('');
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [copyStatus, setCopyStatus] = useState('');
-  const [showReasonManager, setShowReasonManager] = useState(false);
-  const [editingReason, setEditingReason] = useState(null);
-  const [newReason, setNewReason] = useState({ english: '', chinese: '', korean: '' });
-  const [managingReasonType, setManagingReasonType] = useState('resettlement');
-  const [deleteConfirmKey, setDeleteConfirmKey] = useState(null);
-  
-  const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
-    const stored = localStorage.getItem('customResettlementReasons');
-    return stored ? JSON.parse(stored) : {};
-  });
-  
-  const [customCancellationReasons, setCustomCancellationReasons] = useState(() => {
-    const stored = localStorage.getItem('customCancellationReasons');
-    return stored ? JSON.parse(stored) : {};
-  });
-  
-  useEffect(() => {
-    localStorage.setItem('customResettlementReasons', JSON.stringify(customResettlementReasons));
-  }, [customResettlementReasons]);
-  
-  useEffect(() => {
-    localStorage.setItem('customCancellationReasons', JSON.stringify(customCancellationReasons));
-  }, [customCancellationReasons]);
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-  const capitalizeFirstLetter = (str) => {
-    if (!str) return str;
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  };
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  const defaultResettlementReasons = {
-    '': { 
-      english: 'Will provide after confirming', 
-      chinese: '确认后提供', 
-      korean: '확인 후 제공하겠습니다' 
-    },
-    'feed_provider': { 
-      english: 'Wrong info from feed', 
-      chinese: '供应商赛果有误', 
-      korean: '공급업체 경기 결과 오류' 
-    },
-    'system_error': { 
-      english: 'System error', 
-      chinese: '系统错误', 
-      korean: '시스템 오류' 
-    },
-    'official_score': { 
-      english: 'Official score changed', 
-      chinese: '官方赛果更新', 
-      korean: '공식 경기 결과 변경됨' 
-    },
-    'under_investigation': {
-      english: 'Under investigation',
-      chinese: '调查中',
-      korean: '조사 중'
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide React Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-  };
-  
-  const resettlementReasonOptions = { ...defaultResettlementReasons, ...customResettlementReasons };
+  </style>
+</head>
+<body>
+  <div id="root"></div>
 
-  const defaultCancellationReasons = {
-    '': { 
-      english: 'Will provide after confirming', 
-      chinese: '确认后提供', 
-      korean: '확인 후 제공하겠습니다' 
-    },
-    'player_retired': {
-      english: 'Player retired',
-      chinese: '选手退赛',
-      korean: '기권'
-    },
-    'postponed': {
-      english: 'Postponed',
-      chinese: '延期',
-      korean: '연기'
-    },
-    'not_played': {
-      english: 'Not played',
-      chinese: '赛事未进行',
-      korean: '경기 미실시'
-    },
-    'walkover': {
-      english: 'Walkover',
-      chinese: '不战而胜',
-      korean: '부전승'
-    }
-  };
-  
-  const cancellationReasonOptions = { ...defaultCancellationReasons, ...customCancellationReasons };
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { FileText, AlertCircle, CheckCircle, Copy, Trash2, Settings, Plus, Edit2, X } = lucide;
 
-  const parseXML = (xmlString) => {
-    const parser = new DOMParser();
-    return parser.parseFromString(xmlString, "text/xml");
-  };
+    const Icon = ({ icon: IconComponent, ...props }) => {
+      const iconRef = React.useRef(null);
 
-  const statusTranslations = {
-    chinese: {
-      'Won': '赢',
-      'Lost': '输',
-      'Canceled': '取消',
-      'Half Won': '半赢',
-      'Half Lost': '半输',
-      'Opened': '未结算',
-      'Draw': '平局'
-    },
-    korean: {
-      'Won': '승리',
-      'Lost': '패',
-      'Canceled': '취소',
-      'Half Won': '반승',
-      'Half Lost': '반패',
-      'Opened': '진행중 베팅',
-      'Draw': '무승부'
-    }
-  };
+      React.useEffect(() => {
+        if (iconRef.current && IconComponent) {
+          lucide.createElement(IconComponent).render(iconRef.current);
+        }
+      }, [IconComponent]);
 
-  const translateStatus = (status, language) => {
-    if (language === 'english') return status;
-    return statusTranslations[language][status] || status;
-  };
+      return <i ref={iconRef} {...props}></i>;
+    };
 
-  const translateStatusHistory = (statusHistory, language) => {
-    if (language === 'english') return statusHistory.join(' → ');
-    return statusHistory.map(status => translateStatus(status, language)).join(' → ');
-  };
+    const BettingSettlementAnalyzer = () => {
+      const [jsonData, setJsonData] = useState('');
+      const [analysisType, setAnalysisType] = useState('resettlement');
+      const [resettlementReasonTemplate, setResettlementReasonTemplate] = useState('');
+      const [cancellationReasonTemplate, setCancellationReasonTemplate] = useState('');
+      const [results, setResults] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [copyStatus, setCopyStatus] = useState('');
+      const [showReasonManager, setShowReasonManager] = useState(false);
+      const [editingReason, setEditingReason] = useState(null);
+      const [newReason, setNewReason] = useState({ english: '', chinese: '', korean: '' });
+      const [managingReasonType, setManagingReasonType] = useState('resettlement');
+      const [deleteConfirmKey, setDeleteConfirmKey] = useState(null);
 
-  const formatDateTime = (dateTimeStr) => {
-    if (!dateTimeStr) return '';
-    
-    let utcDateTimeStr = dateTimeStr;
-    if (!dateTimeStr.includes('Z') && !dateTimeStr.includes('+') && !dateTimeStr.includes('-', 10)) {
-      utcDateTimeStr = dateTimeStr + 'Z';
-    }
-    
-    const date = new Date(utcDateTimeStr);
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const hours = String(date.getUTCHours()).padStart(2, '0');
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
-  };
+      const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
+        const stored = localStorage.getItem('customResettlementReasons');
+        return stored ? JSON.parse(stored) : {};
+      });
 
-  const analyzeResettlements = (data) => {
-    const lineIdTracking = new Map();
-    const betStatusTracking = new Map();
-    
-    const settlementRecords = data.filter(item => 
-      item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
-    ).sort((a, b) => new Date(a.creationdate) - new Date(b.creationdate));
+      const [customCancellationReasons, setCustomCancellationReasons] = useState(() => {
+        const stored = localStorage.getItem('customCancellationReasons');
+        return stored ? JSON.parse(stored) : {};
+      });
 
-    settlementRecords.forEach(record => {
-      if (!record.reqparams) return;
-      
-      try {
-        const xmlDoc = parseXML(record.reqparams);
-        const selections = xmlDoc.getElementsByTagName('Selection');
-        
-        Array.from(selections).forEach(selection => {
-          const changes = selection.getElementsByTagName('Change');
-          Array.from(changes).forEach(change => {
-            const bets = change.getElementsByTagName('Bet');
-            if (bets.length > 0) {
-              const bet = bets[0];
-              const betId = bet.getAttribute('ID');
-              const betStatus = bet.getAttribute('NewStatus');
-              const dateUTC = change.getAttribute('DateUTC');
-              
-              if (betId && betId !== '0' && betStatus && dateUTC) {
-                if (!betStatusTracking.has(betId)) {
-                  betStatusTracking.set(betId, []);
+      useEffect(() => {
+        localStorage.setItem('customResettlementReasons', JSON.stringify(customResettlementReasons));
+      }, [customResettlementReasons]);
+
+      useEffect(() => {
+        localStorage.setItem('customCancellationReasons', JSON.stringify(customCancellationReasons));
+      }, [customCancellationReasons]);
+
+      const capitalizeFirstLetter = (str) => {
+        if (!str) return str;
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      };
+
+      const defaultResettlementReasons = {
+        '': {
+          english: 'Will provide after confirming',
+          chinese: '确认后提供',
+          korean: '확인 후 제공하겠습니다'
+        },
+        'feed_provider': {
+          english: 'Wrong info from feed',
+          chinese: '供应商赛果有误',
+          korean: '공급업체 경기 결과 오류'
+        },
+        'system_error': {
+          english: 'System error',
+          chinese: '系统错误',
+          korean: '시스템 오류'
+        },
+        'official_score': {
+          english: 'Official score changed',
+          chinese: '官方赛果更新',
+          korean: '공식 경기 결과 변경됨'
+        },
+        'under_investigation': {
+          english: 'Under investigation',
+          chinese: '调查中',
+          korean: '조사 중'
+        }
+      };
+
+      const resettlementReasonOptions = { ...defaultResettlementReasons, ...customResettlementReasons };
+
+      const defaultCancellationReasons = {
+        '': {
+          english: 'Will provide after confirming',
+          chinese: '确认后提供',
+          korean: '확인 후 제공하겠습니다'
+        },
+        'player_retired': {
+          english: 'Player retired',
+          chinese: '选手退赛',
+          korean: '기권'
+        },
+        'postponed': {
+          english: 'Postponed',
+          chinese: '延期',
+          korean: '연기'
+        },
+        'not_played': {
+          english: 'Not played',
+          chinese: '赛事未进行',
+          korean: '경기 미실시'
+        },
+        'walkover': {
+          english: 'Walkover',
+          chinese: '不战而胜',
+          korean: '부전승'
+        }
+      };
+
+      const cancellationReasonOptions = { ...defaultCancellationReasons, ...customCancellationReasons };
+
+      const parseXML = (xmlString) => {
+        const parser = new DOMParser();
+        return parser.parseFromString(xmlString, "text/xml");
+      };
+
+      const statusTranslations = {
+        chinese: {
+          'Won': '赢',
+          'Lost': '输',
+          'Canceled': '取消',
+          'Half Won': '半赢',
+          'Half Lost': '半输',
+          'Opened': '未结算',
+          'Draw': '平局'
+        },
+        korean: {
+          'Won': '승리',
+          'Lost': '패',
+          'Canceled': '취소',
+          'Half Won': '반승',
+          'Half Lost': '반패',
+          'Opened': '진행중 베팅',
+          'Draw': '무승부'
+        }
+      };
+
+      const translateStatus = (status, language) => {
+        if (language === 'english') return status;
+        return statusTranslations[language][status] || status;
+      };
+
+      const translateStatusHistory = (statusHistory, language) => {
+        if (language === 'english') return statusHistory.join(' → ');
+        return statusHistory.map(status => translateStatus(status, language)).join(' → ');
+      };
+
+      const formatDateTime = (dateTimeStr) => {
+        if (!dateTimeStr) return '';
+
+        let utcDateTimeStr = dateTimeStr;
+        if (!dateTimeStr.includes('Z') && !dateTimeStr.includes('+') && !dateTimeStr.includes('-', 10)) {
+          utcDateTimeStr = dateTimeStr + 'Z';
+        }
+
+        const date = new Date(utcDateTimeStr);
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
+      };
+
+      const analyzeResettlements = (data) => {
+        const lineIdTracking = new Map();
+        const betStatusTracking = new Map();
+
+        const settlementRecords = data.filter(item =>
+          item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
+        ).sort((a, b) => new Date(a.creationdate) - new Date(b.creationdate));
+
+        settlementRecords.forEach(record => {
+          if (!record.reqparams) return;
+
+          try {
+            const xmlDoc = parseXML(record.reqparams);
+            const selections = xmlDoc.getElementsByTagName('Selection');
+
+            Array.from(selections).forEach(selection => {
+              const changes = selection.getElementsByTagName('Change');
+              Array.from(changes).forEach(change => {
+                const bets = change.getElementsByTagName('Bet');
+                if (bets.length > 0) {
+                  const bet = bets[0];
+                  const betId = bet.getAttribute('ID');
+                  const betStatus = bet.getAttribute('NewStatus');
+                  const dateUTC = change.getAttribute('DateUTC');
+
+                  if (betId && betId !== '0' && betStatus && dateUTC) {
+                    if (!betStatusTracking.has(betId)) {
+                      betStatusTracking.set(betId, []);
+                    }
+                    betStatusTracking.get(betId).push({
+                      status: betStatus,
+                      dateUTC: dateUTC,
+                      recordDate: record.creationdate
+                    });
+                  }
                 }
-                betStatusTracking.get(betId).push({
-                  status: betStatus,
-                  dateUTC: dateUTC,
+              });
+            });
+          } catch (e) {
+            console.error('XML parsing error:', e);
+          }
+        });
+
+        settlementRecords.forEach(record => {
+          if (!record.reqparams) return;
+
+          try {
+            const xmlDoc = parseXML(record.reqparams);
+            const selections = xmlDoc.getElementsByTagName('Selection');
+
+            Array.from(selections).forEach(selection => {
+              const lineId = selection.getAttribute('LineID');
+              const eventName = selection.getAttribute('EventName');
+
+              if (!lineId || !eventName) return;
+
+              const changes = selection.getElementsByTagName('Change');
+              Array.from(changes).forEach(change => {
+                const oldStatus = change.getAttribute('OldStatus');
+                const newStatus = change.getAttribute('NewStatus');
+                const dateUTC = change.getAttribute('DateUTC');
+
+                const bets = change.getElementsByTagName('Bet');
+                let betId = '';
+                if (bets.length > 0) {
+                  betId = bets[0].getAttribute('ID');
+                }
+
+                if (!lineIdTracking.has(lineId)) {
+                  lineIdTracking.set(lineId, {
+                    eventName,
+                    statusHistory: [],
+                    betId: betId !== '0' ? betId : ''
+                  });
+                }
+
+                const tracking = lineIdTracking.get(lineId);
+                tracking.statusHistory.push({
+                  oldStatus,
+                  newStatus,
+                  dateUTC,
                   recordDate: record.creationdate
                 });
-              }
-            }
-          });
-        });
-      } catch (e) {
-        console.error('XML parsing error:', e);
-      }
-    });
 
-    settlementRecords.forEach(record => {
-      if (!record.reqparams) return;
-      
-      try {
-        const xmlDoc = parseXML(record.reqparams);
-        const selections = xmlDoc.getElementsByTagName('Selection');
-        
-        Array.from(selections).forEach(selection => {
-          const lineId = selection.getAttribute('LineID');
-          const eventName = selection.getAttribute('EventName');
-          
-          if (!lineId || !eventName) return;
-          
-          const changes = selection.getElementsByTagName('Change');
-          Array.from(changes).forEach(change => {
-            const oldStatus = change.getAttribute('OldStatus');
-            const newStatus = change.getAttribute('NewStatus');
-            const dateUTC = change.getAttribute('DateUTC');
-            
-            const bets = change.getElementsByTagName('Bet');
-            let betId = '';
-            if (bets.length > 0) {
-              betId = bets[0].getAttribute('ID');
-            }
-            
-            if (!lineIdTracking.has(lineId)) {
-              lineIdTracking.set(lineId, {
-                eventName,
-                statusHistory: [],
-                betId: betId !== '0' ? betId : ''
+                if (betId !== '0' && !tracking.betId) {
+                  tracking.betId = betId;
+                }
+              });
+            });
+          } catch (e) {
+            console.error('XML parsing error:', e);
+          }
+        });
+
+        const resettlements = [];
+        lineIdTracking.forEach((tracking, lineId) => {
+          if (tracking.statusHistory.length > 1) {
+            tracking.statusHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+
+            const statusChanges = tracking.statusHistory.map(h => h.newStatus);
+            const uniqueStatuses = [...new Set(statusChanges)];
+
+            if (uniqueStatuses.length > 1) {
+              let finalBetStatus = 'N/A';
+              if (tracking.betId && betStatusTracking.has(tracking.betId)) {
+                const betStatuses = betStatusTracking.get(tracking.betId);
+                betStatuses.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+                if (betStatuses.length > 0) {
+                  finalBetStatus = betStatuses[betStatuses.length - 1].status;
+                }
+              }
+
+              resettlements.push({
+                betId: tracking.betId || 'N/A',
+                eventName: tracking.eventName,
+                statusHistory: statusChanges,
+                betStatus: finalBetStatus,
+                firstSettlementTime: tracking.statusHistory[0].dateUTC,
+                lastUpdateTime: tracking.statusHistory[tracking.statusHistory.length - 1].dateUTC
               });
             }
-            
-            const tracking = lineIdTracking.get(lineId);
-            tracking.statusHistory.push({
-              oldStatus,
-              newStatus,
-              dateUTC,
-              recordDate: record.creationdate
-            });
-            
-            if (betId !== '0' && !tracking.betId) {
-              tracking.betId = betId;
-            }
-          });
-        });
-      } catch (e) {
-        console.error('XML parsing error:', e);
-      }
-    });
-
-    const resettlements = [];
-    lineIdTracking.forEach((tracking, lineId) => {
-      if (tracking.statusHistory.length > 1) {
-        tracking.statusHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-        
-        const statusChanges = tracking.statusHistory.map(h => h.newStatus);
-        const uniqueStatuses = [...new Set(statusChanges)];
-        
-        if (uniqueStatuses.length > 1) {
-          let finalBetStatus = 'N/A';
-          if (tracking.betId && betStatusTracking.has(tracking.betId)) {
-            const betStatuses = betStatusTracking.get(tracking.betId);
-            betStatuses.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-            if (betStatuses.length > 0) {
-              finalBetStatus = betStatuses[betStatuses.length - 1].status;
-            }
           }
-          
-          resettlements.push({
-            betId: tracking.betId || 'N/A',
-            eventName: tracking.eventName,
-            statusHistory: statusChanges,
-            betStatus: finalBetStatus,
-            firstSettlementTime: tracking.statusHistory[0].dateUTC,
-            lastUpdateTime: tracking.statusHistory[tracking.statusHistory.length - 1].dateUTC
-          });
-        }
-      }
-    });
+        });
 
-    return resettlements;
-  };
+        return resettlements;
+      };
 
-  const analyzeCancellations = (data) => {
-    const lineIdTracking = new Map();
-    const betStatusTracking = new Map();
-    
-    const settlementRecords = data.filter(item => 
-      item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
-    ).sort((a, b) => new Date(a.creationdate) - new Date(b.creationdate));
+      const analyzeCancellations = (data) => {
+        const lineIdTracking = new Map();
+        const betStatusTracking = new Map();
 
-    settlementRecords.forEach(record => {
-      if (!record.reqparams) return;
-      
-      try {
-        const xmlDoc = parseXML(record.reqparams);
-        const selections = xmlDoc.getElementsByTagName('Selection');
-        
-        Array.from(selections).forEach(selection => {
-          const changes = selection.getElementsByTagName('Change');
-          Array.from(changes).forEach(change => {
-            const bets = change.getElementsByTagName('Bet');
-            if (bets.length > 0) {
-              const bet = bets[0];
-              const betId = bet.getAttribute('ID');
-              const betStatus = bet.getAttribute('NewStatus');
-              const dateUTC = change.getAttribute('DateUTC');
-              
-              if (betId && betId !== '0' && betStatus && dateUTC) {
-                if (!betStatusTracking.has(betId)) {
-                  betStatusTracking.set(betId, []);
+        const settlementRecords = data.filter(item =>
+          item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
+        ).sort((a, b) => new Date(a.creationdate) - new Date(b.creationdate));
+
+        settlementRecords.forEach(record => {
+          if (!record.reqparams) return;
+
+          try {
+            const xmlDoc = parseXML(record.reqparams);
+            const selections = xmlDoc.getElementsByTagName('Selection');
+
+            Array.from(selections).forEach(selection => {
+              const changes = selection.getElementsByTagName('Change');
+              Array.from(changes).forEach(change => {
+                const bets = change.getElementsByTagName('Bet');
+                if (bets.length > 0) {
+                  const bet = bets[0];
+                  const betId = bet.getAttribute('ID');
+                  const betStatus = bet.getAttribute('NewStatus');
+                  const dateUTC = change.getAttribute('DateUTC');
+
+                  if (betId && betId !== '0' && betStatus && dateUTC) {
+                    if (!betStatusTracking.has(betId)) {
+                      betStatusTracking.set(betId, []);
+                    }
+                    betStatusTracking.get(betId).push({
+                      status: betStatus,
+                      dateUTC: dateUTC,
+                      recordDate: record.creationdate
+                    });
+                  }
                 }
-                betStatusTracking.get(betId).push({
-                  status: betStatus,
-                  dateUTC: dateUTC,
+              });
+            });
+          } catch (e) {
+            console.error('XML parsing error:', e);
+          }
+        });
+
+        settlementRecords.forEach(record => {
+          if (!record.reqparams) return;
+
+          try {
+            const xmlDoc = parseXML(record.reqparams);
+            const selections = xmlDoc.getElementsByTagName('Selection');
+
+            Array.from(selections).forEach(selection => {
+              const lineId = selection.getAttribute('LineID');
+              const eventName = selection.getAttribute('EventName');
+
+              if (!lineId || !eventName) return;
+
+              const changes = selection.getElementsByTagName('Change');
+              Array.from(changes).forEach(change => {
+                const newStatus = change.getAttribute('NewStatus');
+                const dateUTC = change.getAttribute('DateUTC');
+
+                const bets = change.getElementsByTagName('Bet');
+                let betId = '';
+                if (bets.length > 0) {
+                  betId = bets[0].getAttribute('ID');
+                }
+
+                if (!lineIdTracking.has(lineId)) {
+                  lineIdTracking.set(lineId, {
+                    eventName,
+                    statusHistory: [],
+                    betId: betId !== '0' ? betId : ''
+                  });
+                }
+
+                const tracking = lineIdTracking.get(lineId);
+                tracking.statusHistory.push({
+                  newStatus,
+                  dateUTC,
                   recordDate: record.creationdate
                 });
-              }
-            }
-          });
-        });
-      } catch (e) {
-        console.error('XML parsing error:', e);
-      }
-    });
 
-    settlementRecords.forEach(record => {
-      if (!record.reqparams) return;
-      
-      try {
-        const xmlDoc = parseXML(record.reqparams);
-        const selections = xmlDoc.getElementsByTagName('Selection');
-        
-        Array.from(selections).forEach(selection => {
-          const lineId = selection.getAttribute('LineID');
-          const eventName = selection.getAttribute('EventName');
-          
-          if (!lineId || !eventName) return;
-          
-          const changes = selection.getElementsByTagName('Change');
-          Array.from(changes).forEach(change => {
-            const newStatus = change.getAttribute('NewStatus');
-            const dateUTC = change.getAttribute('DateUTC');
-            
-            const bets = change.getElementsByTagName('Bet');
-            let betId = '';
-            if (bets.length > 0) {
-              betId = bets[0].getAttribute('ID');
-            }
-            
-            if (!lineIdTracking.has(lineId)) {
-              lineIdTracking.set(lineId, {
-                eventName,
-                statusHistory: [],
-                betId: betId !== '0' ? betId : ''
+                if (betId !== '0' && !tracking.betId) {
+                  tracking.betId = betId;
+                }
+              });
+            });
+          } catch (e) {
+            console.error('XML parsing error:', e);
+          }
+        });
+
+        const cancellations = [];
+        lineIdTracking.forEach((tracking, lineId) => {
+          if (tracking.statusHistory.length > 0) {
+            tracking.statusHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+            const lastStatus = tracking.statusHistory[tracking.statusHistory.length - 1];
+
+            if (lastStatus.newStatus === 'Canceled') {
+              let finalBetStatus = 'N/A';
+              if (tracking.betId && betStatusTracking.has(tracking.betId)) {
+                const betStatuses = betStatusTracking.get(tracking.betId);
+                betStatuses.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+                if (betStatuses.length > 0) {
+                  finalBetStatus = betStatuses[betStatuses.length - 1].status;
+                }
+              }
+
+              cancellations.push({
+                betId: tracking.betId || 'N/A',
+                eventName: tracking.eventName,
+                eventStatus: 'Canceled',
+                betStatus: finalBetStatus,
+                updateTime: lastStatus.dateUTC
               });
             }
-            
-            const tracking = lineIdTracking.get(lineId);
-            tracking.statusHistory.push({
-              newStatus,
-              dateUTC,
-              recordDate: record.creationdate
-            });
-            
-            if (betId !== '0' && !tracking.betId) {
-              tracking.betId = betId;
-            }
-          });
-        });
-      } catch (e) {
-        console.error('XML parsing error:', e);
-      }
-    });
-
-    const cancellations = [];
-    lineIdTracking.forEach((tracking, lineId) => {
-      if (tracking.statusHistory.length > 0) {
-        tracking.statusHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-        const lastStatus = tracking.statusHistory[tracking.statusHistory.length - 1];
-        
-        if (lastStatus.newStatus === 'Canceled') {
-          let finalBetStatus = 'N/A';
-          if (tracking.betId && betStatusTracking.has(tracking.betId)) {
-            const betStatuses = betStatusTracking.get(tracking.betId);
-            betStatuses.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-            if (betStatuses.length > 0) {
-              finalBetStatus = betStatuses[betStatuses.length - 1].status;
-            }
           }
-          
-          cancellations.push({
-            betId: tracking.betId || 'N/A',
-            eventName: tracking.eventName,
-            eventStatus: 'Canceled',
-            betStatus: finalBetStatus,
-            updateTime: lastStatus.dateUTC
+        });
+
+        return cancellations;
+      };
+
+      const generateResettlementReports = (resettlements) => {
+        if (resettlements.length === 0) {
+          return {
+            english: 'No resettlement records.',
+            chinese: '无重新结算记录。',
+            korean: '무 재정산 기록.'
+          };
+        }
+
+        const reasonText = resettlementReasonOptions[resettlementReasonTemplate];
+
+        let englishReport = 'Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.\n\n---\n\n';
+        let chineseReport = '注单已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。\n\n---\n\n';
+        let koreanReport = '기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.\n\n---\n\n';
+
+        resettlements.forEach((item, index) => {
+          const eventLabel = resettlements.length > 1 ? `Event${index + 1}- ` : '';
+          const eventLabelCN = resettlements.length > 1 ? `赛事${index + 1}- ` : '';
+          const eventLabelKR = resettlements.length > 1 ? `이벤트${index + 1}- ` : '';
+
+          const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
+          const statusHistoryCN = translateStatusHistory(item.statusHistory, 'chinese');
+          const statusHistoryKR = translateStatusHistory(item.statusHistory, 'korean');
+
+          englishReport += `Bet ID: ${item.betId}\n`;
+          englishReport += `Event: ${eventLabel}${item.eventName}\n`;
+          englishReport += `Event Resettlement History: ${statusHistoryEN}\n`;
+          englishReport += `Bet Status: ${item.betStatus}\n`;
+          englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
+          englishReport += `Last Update Time: ${formatDateTime(item.lastUpdateTime)}\n`;
+          englishReport += `Reason for Resettlement: ${reasonText.english}`;
+          if (index < resettlements.length - 1) englishReport += '\n\n---\n\n';
+
+          chineseReport += `注单号：${item.betId}\n`;
+          chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
+          chineseReport += `赛事重新结算历史：${statusHistoryCN}\n`;
+          chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
+          chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
+          chineseReport += `最后更新时间：${formatDateTime(item.lastUpdateTime)}\n`;
+          chineseReport += `重新结算原因：${reasonText.chinese}`;
+          if (index < resettlements.length - 1) chineseReport += '\n\n---\n\n';
+
+          koreanReport += `베팅 번호: ${item.betId}\n`;
+          koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
+          koreanReport += `경기 재정산 내역: ${statusHistoryKR}\n`;
+          koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
+          koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
+          koreanReport += `마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n`;
+          koreanReport += `재정산 사유: ${reasonText.korean}`;
+          if (index < resettlements.length - 1) koreanReport += '\n\n---\n\n';
+        });
+
+        return {
+          english: englishReport,
+          chinese: chineseReport,
+          korean: koreanReport
+        };
+      };
+
+      const generateCancellationReports = (cancellations) => {
+        if (cancellations.length === 0) {
+          return {
+            english: 'No cancellation records.',
+            chinese: '无取消记录。',
+            korean: '무 취소 기록.'
+          };
+        }
+
+        const reasonText = cancellationReasonOptions[cancellationReasonTemplate];
+
+        let englishReport = '';
+        let chineseReport = '';
+        let koreanReport = '';
+
+        cancellations.forEach((item, index) => {
+          const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
+          const eventLabelCN = cancellations.length > 1 ? `赛事${index + 1}- ` : '';
+          const eventLabelKR = cancellations.length > 1 ? `이벤트${index + 1}- ` : '';
+
+          englishReport += `Bet ID: ${item.betId}\n`;
+          englishReport += `Event: ${eventLabel}${item.eventName}\n`;
+          englishReport += `Event Status: ${item.eventStatus}\n`;
+          englishReport += `Bet Status: ${item.betStatus}\n`;
+          englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
+          englishReport += `Reason of Cancelation: ${reasonText.english}\n`;
+          if (index < cancellations.length - 1) englishReport += '\n---\n\n';
+
+          chineseReport += `注单号：${item.betId}\n`;
+          chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
+          chineseReport += `赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n`;
+          chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
+          chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
+          chineseReport += `取消原因：${reasonText.chinese}\n`;
+          if (index < cancellations.length - 1) chineseReport += '\n---\n\n';
+
+          koreanReport += `베팅 ID: ${item.betId}\n`;
+          koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
+          koreanReport += `이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n`;
+          koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
+          koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
+          koreanReport += `취소 사유: ${reasonText.korean}\n`;
+          if (index < cancellations.length - 1) koreanReport += '\n---\n\n';
+        });
+
+        return {
+          english: englishReport,
+          chinese: chineseReport,
+          korean: koreanReport
+        };
+      };
+
+      const handleAnalyze = () => {
+        if (!jsonData.trim()) {
+          setError('请输入JSON数据');
+          return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+          const data = JSON.parse(jsonData);
+
+          if (!Array.isArray(data)) {
+            throw new Error('请输入JSON数组格式的Seamless tool数据');
+          }
+
+          let reports = {};
+          if (analysisType === 'resettlement') {
+            const resettlements = analyzeResettlements(data);
+            reports = generateResettlementReports(resettlements);
+          } else {
+            const cancellations = analyzeCancellations(data);
+            reports = generateCancellationReports(cancellations);
+          }
+
+          setResults(reports);
+        } catch (e) {
+          setError('数据解析错误: ' + e.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleCopy = (language) => {
+        if (!results || !results[language]) return;
+
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = results[language];
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            setCopyStatus(`已复制${language === 'english' ? '英文' : language === 'chinese' ? '中文' : '韩文'}内容`);
+            setTimeout(() => setCopyStatus(''), 2000);
+          } else {
+            setCopyStatus('复制失败，请手动复制');
+            setTimeout(() => setCopyStatus(''), 3000);
+          }
+        } catch (err) {
+          console.error('复制失败:', err);
+          setCopyStatus('复制失败，请手动复制');
+          setTimeout(() => setCopyStatus(''), 3000);
+        }
+      };
+
+      const handleAddReason = () => {
+        if (!newReason.english || !newReason.chinese || !newReason.korean) {
+          alert('请填写完整的原因信息');
+          return;
+        }
+
+        const timestamp = Date.now();
+        const key = `custom_${timestamp}`;
+
+        if (managingReasonType === 'resettlement') {
+          setCustomResettlementReasons({
+            ...customResettlementReasons,
+            [key]: {
+              english: capitalizeFirstLetter(newReason.english),
+              chinese: newReason.chinese,
+              korean: newReason.korean
+            }
+          });
+        } else {
+          setCustomCancellationReasons({
+            ...customCancellationReasons,
+            [key]: {
+              english: capitalizeFirstLetter(newReason.english),
+              chinese: newReason.chinese,
+              korean: newReason.korean
+            }
           });
         }
-      }
-    });
 
-    return cancellations;
-  };
-
-  const generateResettlementReports = (resettlements) => {
-    if (resettlements.length === 0) {
-      return {
-        english: 'No resettlement records.',
-        chinese: '无重新结算记录。',
-        korean: '무 재정산 기록.'
+        setNewReason({ english: '', chinese: '', korean: '' });
       };
-    }
 
-    const reasonText = resettlementReasonOptions[resettlementReasonTemplate];
-
-    let englishReport = 'Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.\n\n---\n\n';
-    let chineseReport = '注单已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。\n\n---\n\n';
-    let koreanReport = '기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.\n\n---\n\n';
-    
-    resettlements.forEach((item, index) => {
-      const eventLabel = resettlements.length > 1 ? `Event${index + 1}- ` : '';
-      const eventLabelCN = resettlements.length > 1 ? `赛事${index + 1}- ` : '';
-      const eventLabelKR = resettlements.length > 1 ? `이벤트${index + 1}- ` : '';
-      
-      const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
-      const statusHistoryCN = translateStatusHistory(item.statusHistory, 'chinese');
-      const statusHistoryKR = translateStatusHistory(item.statusHistory, 'korean');
-      
-      englishReport += `Bet ID: ${item.betId}\n`;
-      englishReport += `Event: ${eventLabel}${item.eventName}\n`;
-      englishReport += `Event Resettlement History: ${statusHistoryEN}\n`;
-      englishReport += `Bet Status: ${item.betStatus}\n`;
-      englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
-      englishReport += `Last Update Time: ${formatDateTime(item.lastUpdateTime)}\n`;
-      englishReport += `Reason for Resettlement: ${reasonText.english}`;
-      if (index < resettlements.length - 1) englishReport += '\n\n---\n\n';
-      
-      chineseReport += `注单号：${item.betId}\n`;
-      chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
-      chineseReport += `赛事重新结算历史：${statusHistoryCN}\n`;
-      chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
-      chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
-      chineseReport += `最后更新时间：${formatDateTime(item.lastUpdateTime)}\n`;
-      chineseReport += `重新结算原因：${reasonText.chinese}`;
-      if (index < resettlements.length - 1) chineseReport += '\n\n---\n\n';
-      
-      koreanReport += `베팅 번호: ${item.betId}\n`;
-      koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
-      koreanReport += `경기 재정산 내역: ${statusHistoryKR}\n`;
-      koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
-      koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
-      koreanReport += `마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n`;
-      koreanReport += `재정산 사유: ${reasonText.korean}`;
-      if (index < resettlements.length - 1) koreanReport += '\n\n---\n\n';
-    });
-    
-    return {
-      english: englishReport,
-      chinese: chineseReport,
-      korean: koreanReport
-    };
-  };
-
-  const generateCancellationReports = (cancellations) => {
-    if (cancellations.length === 0) {
-      return {
-        english: 'No cancellation records.',
-        chinese: '无取消记录。',
-        korean: '무 취소 기록.'
+      const handleEditReason = (key) => {
+        const reasons = managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons;
+        setEditingReason({ key, ...reasons[key] });
       };
-    }
 
-    const reasonText = cancellationReasonOptions[cancellationReasonTemplate];
-
-    let englishReport = '';
-    let chineseReport = '';
-    let koreanReport = '';
-    
-    cancellations.forEach((item, index) => {
-      const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
-      const eventLabelCN = cancellations.length > 1 ? `赛事${index + 1}- ` : '';
-      const eventLabelKR = cancellations.length > 1 ? `이벤트${index + 1}- ` : '';
-      
-      englishReport += `Bet ID: ${item.betId}\n`;
-      englishReport += `Event: ${eventLabel}${item.eventName}\n`;
-      englishReport += `Event Status: ${item.eventStatus}\n`;
-      englishReport += `Bet Status: ${item.betStatus}\n`;
-      englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
-      englishReport += `Reason of Cancelation: ${reasonText.english}\n`;
-      if (index < cancellations.length - 1) englishReport += '\n---\n\n';
-      
-      chineseReport += `注单号：${item.betId}\n`;
-      chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
-      chineseReport += `赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n`;
-      chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
-      chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
-      chineseReport += `取消原因：${reasonText.chinese}\n`;
-      if (index < cancellations.length - 1) chineseReport += '\n---\n\n';
-      
-      koreanReport += `베팅 ID: ${item.betId}\n`;
-      koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
-      koreanReport += `이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n`;
-      koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
-      koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
-      koreanReport += `취소 사유: ${reasonText.korean}\n`;
-      if (index < cancellations.length - 1) koreanReport += '\n---\n\n';
-    });
-    
-    return {
-      english: englishReport,
-      chinese: chineseReport,
-      korean: koreanReport
-    };
-  };
-
-  const handleAnalyze = () => {
-    if (!jsonData.trim()) {
-      setError('请输入JSON数据');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    
-    try {
-      const data = JSON.parse(jsonData);
-      
-      if (!Array.isArray(data)) {
-        throw new Error('请输入JSON数组格式的Seamless tool数据');
-      }
-      
-      let reports = {};
-      if (analysisType === 'resettlement') {
-        const resettlements = analyzeResettlements(data);
-        reports = generateResettlementReports(resettlements);
-      } else {
-        const cancellations = analyzeCancellations(data);
-        reports = generateCancellationReports(cancellations);
-      }
-      
-      setResults(reports);
-    } catch (e) {
-      setError('数据解析错误: ' + e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCopy = (language) => {
-    if (!results || !results[language]) return;
-    
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = results[language];
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        setCopyStatus(`已复制${language === 'english' ? '英文' : language === 'chinese' ? '中文' : '韩文'}内容`);
-        setTimeout(() => setCopyStatus(''), 2000);
-      } else {
-        setCopyStatus('复制失败，请手动复制');
-        setTimeout(() => setCopyStatus(''), 3000);
-      }
-    } catch (err) {
-      console.error('复制失败:', err);
-      setCopyStatus('复制失败，请手动复制');
-      setTimeout(() => setCopyStatus(''), 3000);
-    }
-  };
-
-  const handleAddReason = () => {
-    if (!newReason.english || !newReason.chinese || !newReason.korean) {
-      alert('请填写完整的原因信息');
-      return;
-    }
-    
-    const timestamp = Date.now();
-    const key = `custom_${timestamp}`;
-    
-    if (managingReasonType === 'resettlement') {
-      setCustomResettlementReasons({
-        ...customResettlementReasons,
-        [key]: {
-          english: capitalizeFirstLetter(newReason.english),
-          chinese: newReason.chinese,
-          korean: newReason.korean
+      const handleSaveEdit = () => {
+        if (!editingReason.english || !editingReason.chinese || !editingReason.korean) {
+          alert('请填写完整的原因信息');
+          return;
         }
-      });
-    } else {
-      setCustomCancellationReasons({
-        ...customCancellationReasons,
-        [key]: {
-          english: capitalizeFirstLetter(newReason.english),
-          chinese: newReason.chinese,
-          korean: newReason.korean
+
+        if (managingReasonType === 'resettlement') {
+          setCustomResettlementReasons({
+            ...customResettlementReasons,
+            [editingReason.key]: {
+              english: capitalizeFirstLetter(editingReason.english),
+              chinese: editingReason.chinese,
+              korean: editingReason.korean
+            }
+          });
+        } else {
+          setCustomCancellationReasons({
+            ...customCancellationReasons,
+            [editingReason.key]: {
+              english: capitalizeFirstLetter(editingReason.english),
+              chinese: editingReason.chinese,
+              korean: editingReason.korean
+            }
+          });
         }
-      });
-    }
-    
-    setNewReason({ english: '', chinese: '', korean: '' });
-  };
 
-  const handleEditReason = (key) => {
-    const reasons = managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons;
-    setEditingReason({ key, ...reasons[key] });
-  };
+        setEditingReason(null);
+      };
 
-  const handleSaveEdit = () => {
-    if (!editingReason.english || !editingReason.chinese || !editingReason.korean) {
-      alert('请填写完整的原因信息');
-      return;
-    }
-    
-    if (managingReasonType === 'resettlement') {
-      setCustomResettlementReasons({
-        ...customResettlementReasons,
-        [editingReason.key]: {
-          english: capitalizeFirstLetter(editingReason.english),
-          chinese: editingReason.chinese,
-          korean: editingReason.korean
+      const handleDeleteReason = (key) => {
+        if (managingReasonType === 'resettlement') {
+          const updated = { ...customResettlementReasons };
+          delete updated[key];
+          setCustomResettlementReasons(updated);
+        } else {
+          const updated = { ...customCancellationReasons };
+          delete updated[key];
+          setCustomCancellationReasons(updated);
         }
-      });
-    } else {
-      setCustomCancellationReasons({
-        ...customCancellationReasons,
-        [editingReason.key]: {
-          english: capitalizeFirstLetter(editingReason.english),
-          chinese: editingReason.chinese,
-          korean: editingReason.korean
-        }
-      });
-    }
-    
-    setEditingReason(null);
-  };
+        setDeleteConfirmKey(null);
+      };
 
-  const handleDeleteReason = (key) => {
-    if (managingReasonType === 'resettlement') {
-      const updated = { ...customResettlementReasons };
-      delete updated[key];
-      setCustomResettlementReasons(updated);
-    } else {
-      const updated = { ...customCancellationReasons };
-      delete updated[key];
-      setCustomCancellationReasons(updated);
-    }
-    setDeleteConfirmKey(null);
-  };
+      const handleClear = () => {
+        setJsonData('');
+        setResettlementReasonTemplate('');
+        setCancellationReasonTemplate('');
+        setResults(null);
+        setError('');
+        setCopyStatus('');
+      };
 
-  const handleClear = () => {
-    setJsonData('');
-    setResettlementReasonTemplate('');
-    setCancellationReasonTemplate('');
-    setResults(null);
-    setError('');
-    setCopyStatus('');
-  };
+      const modalContainerStyle = {
+        overflow: 'hidden'
+      };
 
-  const modalContainerStyle = {
-    overflow: 'hidden'
-  };
+      const modalBoxStyle = {
+        height: '600px',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      };
 
-  const modalBoxStyle = {
-    height: '600px',
-    maxHeight: '85vh',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden'
-  };
+      const modalHeaderStyle = {
+        flexShrink: 0
+      };
 
-  const modalHeaderStyle = {
-    flexShrink: 0
-  };
+      const modalContentStyle = {
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      };
 
-  const modalContentStyle = {
-    flex: 1,
-    overflowY: 'auto',
-    overflowX: 'hidden'
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto p-6 bg-white">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Seamless Tool 结算分析器</h1>
-          <p className="text-gray-600">专为Seamless tool平台设计的投注结算Log分析工具</p>
-        </div>
-        <button
-          onClick={() => setShowReasonManager(true)}
-          className="bg-gray-100 hover:bg-gray-200 text-2xl p-3 rounded-lg transition-colors"
-          title="管理自定义原因"
-        >
-          ⚙️
-        </button>
-      </div>
-
-      {showReasonManager && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          style={modalContainerStyle}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-2xl w-full max-w-2xl"
-            style={modalBoxStyle}
-          >
-            <div 
-              className="border-b border-gray-200 p-4 bg-white rounded-t-lg"
-              style={modalHeaderStyle}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Settings className="mr-2" size={20} />
-                  管理自定义原因
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowReasonManager(false);
-                    setEditingReason(null);
-                    setNewReason({ english: '', chinese: '', korean: '' });
-                    setDeleteConfirmKey(null);
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+      return (
+        <div className="max-w-6xl mx-auto p-6 bg-white">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Seamless Tool 结算分析器</h1>
+              <p className="text-gray-600">专为Seamless tool平台设计的投注结算Log分析工具</p>
             </div>
-            
-            <div className="p-6" style={modalContentStyle}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    原因类型
-                  </label>
-                  <select
-                    value={managingReasonType}
-                    onChange={(e) => {
-                      setManagingReasonType(e.target.value);
-                      setEditingReason(null);
-                      setNewReason({ english: '', chinese: '', korean: '' });
-                      setDeleteConfirmKey(null);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="resettlement">重新结算原因</option>
-                    <option value="cancellation">取消原因</option>
-                  </select>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="text-sm font-semibold text-gray-700 mb-3">➕ 添加新原因</div>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="英文原因"
-                      value={newReason.english}
-                      onChange={(e) => setNewReason({ ...newReason, english: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="中文原因"
-                      value={newReason.chinese}
-                      onChange={(e) => setNewReason({ ...newReason, chinese: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="韩文原因"
-                      value={newReason.korean}
-                      onChange={(e) => setNewReason({ ...newReason, korean: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+            <button
+              onClick={() => setShowReasonManager(true)}
+              className="bg-gray-100 hover:bg-gray-200 text-2xl p-3 rounded-lg transition-colors"
+              title="管理自定义原因"
+            >
+              ⚙️
+            </button>
+          </div>
+
+          {showReasonManager && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+              style={modalContainerStyle}
+            >
+              <div
+                className="bg-white rounded-lg shadow-2xl w-full max-w-2xl"
+                style={modalBoxStyle}
+              >
+                <div
+                  className="border-b border-gray-200 p-4 bg-white rounded-t-lg"
+                  style={modalHeaderStyle}
+                >
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <span className="mr-2">⚙️</span>
+                      管理自定义原因
+                    </h2>
                     <button
-                      onClick={handleAddReason}
-                      className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center justify-center"
+                      onClick={() => {
+                        setShowReasonManager(false);
+                        setEditingReason(null);
+                        setNewReason({ english: '', chinese: '', korean: '' });
+                        setDeleteConfirmKey(null);
+                      }}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
                     >
-                      <Plus className="mr-2" size={18} />
-                      添加并保存
+                      ✕
                     </button>
                   </div>
                 </div>
-                
-                <div>
-                  <div className="text-sm font-semibold text-gray-700 mb-3">📋 自定义原因列表</div>
-                  {Object.keys(managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons).length === 0 ? (
-                    <div className="text-center text-gray-500 italic py-8 bg-gray-50 rounded-lg">
-                      暂无自定义原因
+
+                <div className="p-6" style={modalContentStyle}>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        原因类型
+                      </label>
+                      <select
+                        value={managingReasonType}
+                        onChange={(e) => {
+                          setManagingReasonType(e.target.value);
+                          setEditingReason(null);
+                          setNewReason({ english: '', chinese: '', korean: '' });
+                          setDeleteConfirmKey(null);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="resettlement">重新结算原因</option>
+                        <option value="cancellation">取消原因</option>
+                      </select>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {Object.keys(managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons).map(key => {
-                        const reason = managingReasonType === 'resettlement' ? customResettlementReasons[key] : customCancellationReasons[key];
-                        const isEditing = editingReason && editingReason.key === key;
-                        
-                        return (
-                          <div key={key} className="bg-white border border-gray-300 rounded-lg p-4">
-                            {isEditing ? (
-                              <div className="space-y-3">
-                                <div className="text-sm font-medium text-gray-600 mb-2">编辑原因</div>
-                                <input
-                                  type="text"
-                                  value={editingReason.english}
-                                  onChange={(e) => setEditingReason({ ...editingReason, english: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="英文"
-                                />
-                                <input
-                                  type="text"
-                                  value={editingReason.chinese}
-                                  onChange={(e) => setEditingReason({ ...editingReason, chinese: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="中文"
-                                />
-                                <input
-                                  type="text"
-                                  value={editingReason.korean}
-                                  onChange={(e) => setEditingReason({ ...editingReason, korean: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="韩文"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={handleSaveEdit}
-                                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
-                                  >
-                                    保存
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingReason(null)}
-                                    className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-md hover:bg-gray-500"
-                                  >
-                                    取消
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="space-y-1 mb-3">
-                                  <div className="text-sm"><span className="font-medium">EN:</span> {reason.english}</div>
-                                  <div className="text-sm"><span className="font-medium">CN:</span> {reason.chinese}</div>
-                                  <div className="text-sm"><span className="font-medium">KR:</span> {reason.korean}</div>
-                                </div>
-                                {deleteConfirmKey === key ? (
-                                  <div className="space-y-2">
-                                    <div className="text-sm text-red-600 font-medium">确定要删除吗？</div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="text-sm font-semibold text-gray-700 mb-3">➕ 添加新原因</div>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder="英文原因"
+                          value={newReason.english}
+                          onChange={(e) => setNewReason({ ...newReason, english: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="中文原因"
+                          value={newReason.chinese}
+                          onChange={(e) => setNewReason({ ...newReason, chinese: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="韩文原因"
+                          value={newReason.korean}
+                          onChange={(e) => setNewReason({ ...newReason, korean: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={handleAddReason}
+                          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center justify-center"
+                        >
+                          <span className="mr-2">➕</span>
+                          添加并保存
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-sm font-semibold text-gray-700 mb-3">📋 自定义原因列表</div>
+                      {Object.keys(managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons).length === 0 ? (
+                        <div className="text-center text-gray-500 italic py-8 bg-gray-50 rounded-lg">
+                          暂无自定义原因
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {Object.keys(managingReasonType === 'resettlement' ? customResettlementReasons : customCancellationReasons).map(key => {
+                            const reason = managingReasonType === 'resettlement' ? customResettlementReasons[key] : customCancellationReasons[key];
+                            const isEditing = editingReason && editingReason.key === key;
+
+                            return (
+                              <div key={key} className="bg-white border border-gray-300 rounded-lg p-4">
+                                {isEditing ? (
+                                  <div className="space-y-3">
+                                    <div className="text-sm font-medium text-gray-600 mb-2">编辑原因</div>
+                                    <input
+                                      type="text"
+                                      value={editingReason.english}
+                                      onChange={(e) => setEditingReason({ ...editingReason, english: e.target.value })}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="英文"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editingReason.chinese}
+                                      onChange={(e) => setEditingReason({ ...editingReason, chinese: e.target.value })}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="中文"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editingReason.korean}
+                                      onChange={(e) => setEditingReason({ ...editingReason, korean: e.target.value })}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="韩文"
+                                    />
                                     <div className="flex gap-2">
                                       <button
-                                        onClick={() => handleDeleteReason(key)}
-                                        className="flex-1 bg-red-600 text-white py-2 px-3 rounded-md hover:bg-red-700 flex items-center justify-center"
+                                        onClick={handleSaveEdit}
+                                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
                                       >
-                                        <X className="mr-1" size={16} />
-                                        确认删除
+                                        保存
                                       </button>
                                       <button
-                                        onClick={() => setDeleteConfirmKey(null)}
-                                        className="flex-1 bg-gray-400 text-white py-2 px-3 rounded-md hover:bg-gray-500"
+                                        onClick={() => setEditingReason(null)}
+                                        className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-md hover:bg-gray-500"
                                       >
                                         取消
                                       </button>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => handleEditReason(key)}
-                                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md hover:bg-blue-600 flex items-center justify-center"
-                                    >
-                                      <Edit2 className="mr-1" size={16} />
-                                      编辑
-                                    </button>
-                                    <button
-                                      onClick={() => setDeleteConfirmKey(key)}
-                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 flex items-center justify-center"
-                                    >
-                                      <X className="mr-1" size={16} />
-                                      删除
-                                    </button>
+                                  <div>
+                                    <div className="space-y-1 mb-3">
+                                      <div className="text-sm"><span className="font-medium">EN:</span> {reason.english}</div>
+                                      <div className="text-sm"><span className="font-medium">CN:</span> {reason.chinese}</div>
+                                      <div className="text-sm"><span className="font-medium">KR:</span> {reason.korean}</div>
+                                    </div>
+                                    {deleteConfirmKey === key ? (
+                                      <div className="space-y-2">
+                                        <div className="text-sm text-red-600 font-medium">确定要删除吗？</div>
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => handleDeleteReason(key)}
+                                            className="flex-1 bg-red-600 text-white py-2 px-3 rounded-md hover:bg-red-700 flex items-center justify-center"
+                                          >
+                                            <span className="mr-1">✕</span>
+                                            确认删除
+                                          </button>
+                                          <button
+                                            onClick={() => setDeleteConfirmKey(null)}
+                                            className="flex-1 bg-gray-400 text-white py-2 px-3 rounded-md hover:bg-gray-500"
+                                          >
+                                            取消
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleEditReason(key)}
+                                          className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md hover:bg-blue-600 flex items-center justify-center"
+                                        >
+                                          <span className="mr-1">✏️</span>
+                                          编辑
+                                        </button>
+                                        <button
+                                          onClick={() => setDeleteConfirmKey(key)}
+                                          className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 flex items-center justify-center"
+                                        >
+                                          <span className="mr-1">✕</span>
+                                          删除
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="mr-2">📄</span>
+                  分析设置
+                </h2>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      分析类型
+                    </label>
+                    <select
+                      value={analysisType}
+                      onChange={(e) => setAnalysisType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="resettlement">重新结算记录</option>
+                      <option value="cancellation">取消记录</option>
+                    </select>
+                  </div>
+
+                  {analysisType === 'resettlement' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        重新结算原因
+                      </label>
+                      <select
+                        value={resettlementReasonTemplate}
+                        onChange={(e) => setResettlementReasonTemplate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                        {Object.keys(resettlementReasonOptions).filter(k => k !== '').map(key => {
+                          const reason = resettlementReasonOptions[key];
+                          const isCustom = !defaultResettlementReasons[key];
+                          return (
+                            <option key={key} value={key}>
+                              {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  {analysisType === 'cancellation' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        取消原因
+                      </label>
+                      <select
+                        value={cancellationReasonTemplate}
+                        onChange={(e) => setCancellationReasonTemplate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                        {Object.keys(cancellationReasonOptions).filter(k => k !== '').map(key => {
+                          const reason = cancellationReasonOptions[key];
+                          const isCustom = !defaultCancellationReasons[key];
+                          return (
+                            <option key={key} value={key}>
+                              {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      JSON数据输入
+                    </label>
+                    <textarea
+                      value={jsonData}
+                      onChange={(e) => setJsonData(e.target.value)}
+                      placeholder="请粘贴完整的Seamless tool JSON数组数据..."
+                      className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAnalyze}
+                      disabled={loading}
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      ) : null}
+                      {loading ? '分析中...' : '开始分析'}
+                    </button>
+
+                    <button
+                      onClick={handleClear}
+                      className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 flex items-center"
+                    >
+                      <span className="mr-1">🗑️</span>
+                      一键清空
+                    </button>
+                  </div>
+
+                  {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center">
+                      <span className="mr-2">⚠️</span>
+                      {error}
+                    </div>
+                  )}
+
+                  {copyStatus && (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center">
+                      <span className="mr-2">✓</span>
+                      {copyStatus}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <FileText className="mr-2" size={20} />
-              分析设置
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  分析类型
-                </label>
-                <select
-                  value={analysisType}
-                  onChange={(e) => setAnalysisType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="resettlement">重新结算记录</option>
-                  <option value="cancellation">取消记录</option>
-                </select>
+            <div className="space-y-6">
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold flex items-center mb-3">
+                    <span className="mr-2">✓</span>
+                    分析结果
+                  </h2>
+                  {results && (
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleCopy('english')}
+                        className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 flex items-center text-sm cursor-pointer"
+                      >
+                        <span className="mr-1">📋</span>
+                        复制英文
+                      </button>
+                      <button
+                        onClick={() => handleCopy('chinese')}
+                        className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center text-sm cursor-pointer"
+                      >
+                        <span className="mr-1">📋</span>
+                        复制中文
+                      </button>
+                      <button
+                        onClick={() => handleCopy('korean')}
+                        className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 flex items-center text-sm cursor-pointer"
+                      >
+                        <span className="mr-1">📋</span>
+                        复制韩文
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {results ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-600 mb-2">English</h4>
+                      <div className="bg-white border border-gray-300 rounded-md p-3">
+                        <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
+                          {results.english}
+                        </pre>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-600 mb-2">中文</h4>
+                      <div className="bg-white border border-gray-300 rounded-md p-3">
+                        <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
+                          {results.chinese}
+                        </pre>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-600 mb-2">한국어</h4>
+                      <div className="bg-white border border-gray-300 rounded-md p-3">
+                        <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
+                          {results.korean}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-300 rounded-md p-4 text-center text-gray-500">
+                    请输入Seamless tool数据并点击"开始分析"查看结果
+                  </div>
+                )}
               </div>
-              
-              {analysisType === 'resettlement' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    重新结算原因
-                  </label>
-                  <select
-                    value={resettlementReasonTemplate}
-                    onChange={(e) => setResettlementReasonTemplate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                    {Object.keys(resettlementReasonOptions).filter(k => k !== '').map(key => {
-                      const reason = resettlementReasonOptions[key];
-                      const isCustom = !defaultResettlementReasons[key];
-                      return (
-                        <option key={key} value={key}>
-                          {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
-              
-              {analysisType === 'cancellation' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    取消原因
-                  </label>
-                  <select
-                    value={cancellationReasonTemplate}
-                    onChange={(e) => setCancellationReasonTemplate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                    {Object.keys(cancellationReasonOptions).filter(k => k !== '').map(key => {
-                      const reason = cancellationReasonOptions[key];
-                      const isCustom = !defaultCancellationReasons[key];
-                      return (
-                        <option key={key} value={key}>
-                          {isCustom && '⭐ '}{reason.english} - {reason.chinese} - {reason.korean}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  JSON数据输入
-                </label>
-                <textarea
-                  value={jsonData}
-                  onChange={(e) => setJsonData(e.target.value)}
-                  placeholder="请粘贴完整的Seamless tool JSON数组数据..."
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAnalyze}
-                  disabled={loading}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  ) : null}
-                  {loading ? '分析中...' : '开始分析'}
-                </button>
-                
-                <button
-                  onClick={handleClear}
-                  className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 flex items-center"
-                >
-                  <Trash2 className="mr-1" size={16} />
-                  一键清空
-                </button>
-              </div>
-              
-              {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center">
-                  <AlertCircle className="mr-2" size={20} />
-                  {error}
-                </div>
-              )}
-              
-              {copyStatus && (
-                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center">
-                  <CheckCircle className="mr-2" size={20} />
-                  {copyStatus}
-                </div>
-              )}
+            </div>
+          </div>
+
+          <div className="mt-8 bg-blue-50 p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">使用说明</h3>
+            <div className="text-sm text-gray-700 space-y-2">
+              <p><strong>数据格式：</strong>仅支持Seamless tool的JSON数组格式数据</p>
+              <p><strong>重新结算分析：</strong>检测同一LineID在多次结算中状态发生变化的记录</p>
+              <p><strong>取消分析：</strong>识别最终状态为"Canceled"的比赛记录</p>
+              <p><strong>多语言输出：</strong>自动生成英文、中文、韩文三种版本的报告</p>
+              <p><strong>复制功能：</strong>可分别复制不同语言版本的分析结果</p>
+              <p><strong>状态翻译：</strong>中文和韩文版本会自动翻译状态文本</p>
+              <p><strong>原因选择：</strong>可选择预设原因或自定义原因，默认为"确认后提供"</p>
+              <p><strong>⚙️ 自定义原因：</strong>点击右上角齿轮按钮，选择原因类型（重新结算/取消），填写三种语言的原因即可添加，英文自动首字母大写，带⭐标记，数据自动保存</p>
             </div>
           </div>
         </div>
+      );
+    };
 
-        <div className="space-y-6">
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold flex items-center mb-3">
-                <CheckCircle className="mr-2" size={20} />
-                分析结果
-              </h2>
-              {results && (
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={() => handleCopy('english')}
-                    className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 flex items-center text-sm cursor-pointer"
-                  >
-                    <Copy className="mr-1" size={16} />
-                    复制英文
-                  </button>
-                  <button
-                    onClick={() => handleCopy('chinese')}
-                    className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center text-sm cursor-pointer"
-                  >
-                    <Copy className="mr-1" size={16} />
-                    复制中文
-                  </button>
-                  <button
-                    onClick={() => handleCopy('korean')}
-                    className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 flex items-center text-sm cursor-pointer"
-                  >
-                    <Copy className="mr-1" size={16} />
-                    复制韩文
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            {results ? (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">English</h4>
-                  <div className="bg-white border border-gray-300 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
-                      {results.english}
-                    </pre>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">中文</h4>
-                  <div className="bg-white border border-gray-300 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
-                      {results.chinese}
-                    </pre>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">한국어</h4>
-                  <div className="bg-white border border-gray-300 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-32 overflow-y-auto">
-                      {results.korean}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-300 rounded-md p-4 text-center text-gray-500">
-                请输入Seamless tool数据并点击"开始分析"查看结果
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 bg-blue-50 p-6 rounded-lg">
-        <h3 className="text-lg font-semibold mb-3">使用说明</h3>
-        <div className="text-sm text-gray-700 space-y-2">
-          <p><strong>数据格式：</strong>仅支持Seamless tool的JSON数组格式数据</p>
-          <p><strong>重新结算分析：</strong>检测同一LineID在多次结算中状态发生变化的记录</p>
-          <p><strong>取消分析：</strong>识别最终状态为"Canceled"的比赛记录</p>
-          <p><strong>多语言输出：</strong>自动生成英文、中文、韩文三种版本的报告</p>
-          <p><strong>复制功能：</strong>可分别复制不同语言版本的分析结果</p>
-          <p><strong>状态翻译：</strong>中文和韩文版本会自动翻译状态文本</p>
-          <p><strong>原因选择：</strong>可选择预设原因或自定义原因，默认为"确认后提供"</p>
-          <p><strong>⚙️ 自定义原因：</strong>点击右上角齿轮按钮，选择原因类型（重新结算/取消），填写三种语言的原因即可添加，英文自动首字母大写，带⭐标记，数据自动保存</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default BettingSettlementAnalyzer;
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<BettingSettlementAnalyzer />);
+  </script>
+</body>
+</html>
