@@ -484,10 +484,6 @@
         let koreanReport = `기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         resettlements.forEach((item, index) => {
-          const eventLabel = resettlements.length > 1 ? `Event${index + 1}- ` : '';
-          const eventLabelCN = resettlements.length > 1 ? `赛事${index + 1}- ` : '';
-          const eventLabelKR = resettlements.length > 1 ? `이벤트${index + 1}- ` : '';
-
           const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
           const statusHistoryCN = translateStatusHistory(item.statusHistory, 'chinese');
           const statusHistoryKR = translateStatusHistory(item.statusHistory, 'korean');
@@ -496,8 +492,12 @@
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : resettlementReasonTemplate;
           const reasonText = resettlementReasonOptions[reasonKey];
 
+          const eventFieldEN = resettlements.length > 1 ? `Event${index + 1}` : 'Event';
+          const eventFieldCN = resettlements.length > 1 ? `赛事${index + 1}` : '赛事';
+          const eventFieldKR = resettlements.length > 1 ? `이벤트${index + 1}` : '이벤트';
+
           englishReport += `Bet ID: ${item.betId}\n`;
-          englishReport += `Event: ${eventLabel}${item.eventName}\n`;
+          englishReport += `${eventFieldEN}: ${item.eventName}\n`;
           englishReport += `Event Resettlement History: ${statusHistoryEN}\n`;
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
@@ -506,7 +506,7 @@
           if (index < resettlements.length - 1) englishReport += '\n';
 
           chineseReport += `注单号：${item.betId}\n`;
-          chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
+          chineseReport += `${eventFieldCN}：${item.eventName}\n`;
           chineseReport += `赛事重新结算历史：${statusHistoryCN}\n`;
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
@@ -515,7 +515,7 @@
           if (index < resettlements.length - 1) chineseReport += '\n';
 
           koreanReport += `베팅 번호: ${item.betId}\n`;
-          koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
+          koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
           koreanReport += `경기 재정산 내역: ${statusHistoryKR}\n`;
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
@@ -548,16 +548,16 @@
         let koreanReport = `기다려 주셔서 감사합니다. 베팅이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         cancellations.forEach((item, index) => {
-          const eventLabel = cancellations.length > 1 ? `Event${index + 1}- ` : '';
-          const eventLabelCN = cancellations.length > 1 ? `赛事${index + 1}- ` : '';
-          const eventLabelKR = cancellations.length > 1 ? `이벤트${index + 1}- ` : '';
-
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : cancellationReasonTemplate;
           const reasonText = cancellationReasonOptions[reasonKey];
 
+          const eventFieldEN = cancellations.length > 1 ? `Event${index + 1}` : 'Event';
+          const eventFieldCN = cancellations.length > 1 ? `赛事${index + 1}` : '赛事';
+          const eventFieldKR = cancellations.length > 1 ? `이벤트${index + 1}` : '이벤트';
+
           englishReport += `Bet ID: ${item.betId}\n`;
-          englishReport += `Event: ${eventLabel}${item.eventName}\n`;
+          englishReport += `${eventFieldEN}: ${item.eventName}\n`;
           englishReport += `Event Status: ${item.eventStatus}\n`;
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
@@ -565,7 +565,7 @@
           if (index < cancellations.length - 1) englishReport += '\n';
 
           chineseReport += `注单号：${item.betId}\n`;
-          chineseReport += `赛事：${eventLabelCN}${item.eventName}\n`;
+          chineseReport += `${eventFieldCN}：${item.eventName}\n`;
           chineseReport += `赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n`;
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
@@ -573,7 +573,7 @@
           if (index < cancellations.length - 1) chineseReport += '\n';
 
           koreanReport += `베팅 ID: ${item.betId}\n`;
-          koreanReport += `이벤트: ${eventLabelKR}${item.eventName}\n`;
+          koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
           koreanReport += `이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n`;
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
