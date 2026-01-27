@@ -502,8 +502,8 @@
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
           englishReport += `Last Update Time: ${formatDateTime(item.lastUpdateTime)}\n`;
-          englishReport += `Reason for Resettlement: ${reasonText.english}\n`;
-          if (index < resettlements.length - 1) englishReport += '\n';
+          englishReport += `Reason for Resettlement: ${reasonText.english}`;
+          if (index < resettlements.length - 1) englishReport += '\n\n';
 
           chineseReport += `注单号：${item.betId}\n`;
           chineseReport += `${eventFieldCN}：${item.eventName}\n`;
@@ -511,8 +511,8 @@
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
           chineseReport += `最后更新时间：${formatDateTime(item.lastUpdateTime)}\n`;
-          chineseReport += `重新结算原因：${reasonText.chinese}\n`;
-          if (index < resettlements.length - 1) chineseReport += '\n';
+          chineseReport += `重新结算原因：${reasonText.chinese}`;
+          if (index < resettlements.length - 1) chineseReport += '\n\n';
 
           koreanReport += `베팅 번호: ${item.betId}\n`;
           koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
@@ -520,8 +520,8 @@
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
           koreanReport += `마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n`;
-          koreanReport += `재정산 사유: ${reasonText.korean}\n`;
-          if (index < resettlements.length - 1) koreanReport += '\n';
+          koreanReport += `재정산 사유: ${reasonText.korean}`;
+          if (index < resettlements.length - 1) koreanReport += '\n\n';
         });
 
         return {
@@ -561,24 +561,24 @@
           englishReport += `Event Status: ${item.eventStatus}\n`;
           englishReport += `Bet Status: ${item.betStatus}\n`;
           englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
-          englishReport += `Reason of Cancelation: ${reasonText.english}\n`;
-          if (index < cancellations.length - 1) englishReport += '\n';
+          englishReport += `Reason of Cancelation: ${reasonText.english}`;
+          if (index < cancellations.length - 1) englishReport += '\n\n';
 
           chineseReport += `注单号：${item.betId}\n`;
           chineseReport += `${eventFieldCN}：${item.eventName}\n`;
           chineseReport += `赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n`;
           chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
           chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
-          chineseReport += `取消原因：${reasonText.chinese}\n`;
-          if (index < cancellations.length - 1) chineseReport += '\n';
+          chineseReport += `取消原因：${reasonText.chinese}`;
+          if (index < cancellations.length - 1) chineseReport += '\n\n';
 
           koreanReport += `베팅 ID: ${item.betId}\n`;
           koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
           koreanReport += `이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n`;
           koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
           koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
-          koreanReport += `취소 사유: ${reasonText.korean}\n`;
-          if (index < cancellations.length - 1) koreanReport += '\n';
+          koreanReport += `취소 사유: ${reasonText.korean}`;
+          if (index < cancellations.length - 1) koreanReport += '\n\n';
         });
 
         return {
