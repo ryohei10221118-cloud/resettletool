@@ -1093,6 +1093,7 @@
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                         {Object.keys(resettlementReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                           const reason = resettlementReasonOptions[key];
                           const isCustom = !defaultResettlementReasons[key];
@@ -1102,7 +1103,6 @@
                             </option>
                           );
                         })}
-                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                       </select>
                     </div>
                   )}
@@ -1118,6 +1118,7 @@
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                         {Object.keys(cancellationReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                           const reason = cancellationReasonOptions[key];
                           const isCustom = !defaultCancellationReasons[key];
@@ -1127,7 +1128,6 @@
                             </option>
                           );
                         })}
-                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                       </select>
                     </div>
                   )}
@@ -1291,6 +1291,7 @@
                                 {analysisType === 'resettlement' ? (
                                   <>
                                     <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                                     {Object.keys(resettlementReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                                       const reason = resettlementReasonOptions[key];
                                       const isCustom = !defaultResettlementReasons[key];
@@ -1300,11 +1301,11 @@
                                         </option>
                                       );
                                     })}
-                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                                   </>
                                 ) : (
                                   <>
                                     <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
+                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                                     {Object.keys(cancellationReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                                       const reason = cancellationReasonOptions[key];
                                       const isCustom = !defaultCancellationReasons[key];
@@ -1314,7 +1315,6 @@
                                         </option>
                                       );
                                     })}
-                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
                                   </>
                                 )}
                               </select>
