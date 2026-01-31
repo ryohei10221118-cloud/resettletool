@@ -318,6 +318,17 @@
           }
         });
 
+        // Count total unique LineIDs per betId to detect multi-event bets
+        const betEventCount = new Map();
+        lineIdTracking.forEach((tracking) => {
+          if (tracking.betId) {
+            if (!betEventCount.has(tracking.betId)) {
+              betEventCount.set(tracking.betId, 0);
+            }
+            betEventCount.set(tracking.betId, betEventCount.get(tracking.betId) + 1);
+          }
+        });
+
         const resettlements = [];
         lineIdTracking.forEach((tracking, lineId) => {
           if (tracking.statusHistory.length > 1) {
@@ -342,7 +353,8 @@
                 statusHistory: statusChanges,
                 betStatus: finalBetStatus,
                 firstSettlementTime: tracking.statusHistory[0].dateUTC,
-                lastUpdateTime: tracking.statusHistory[tracking.statusHistory.length - 1].dateUTC
+                lastUpdateTime: tracking.statusHistory[tracking.statusHistory.length - 1].dateUTC,
+                totalEventsInBet: tracking.betId ? (betEventCount.get(tracking.betId) || 1) : 1
               });
             }
           }
@@ -443,6 +455,17 @@
           }
         });
 
+        // Count total unique LineIDs per betId to detect multi-event bets
+        const betEventCount = new Map();
+        lineIdTracking.forEach((tracking) => {
+          if (tracking.betId) {
+            if (!betEventCount.has(tracking.betId)) {
+              betEventCount.set(tracking.betId, 0);
+            }
+            betEventCount.set(tracking.betId, betEventCount.get(tracking.betId) + 1);
+          }
+        });
+
         const cancellations = [];
         lineIdTracking.forEach((tracking, lineId) => {
           if (tracking.statusHistory.length > 0) {
@@ -464,7 +487,8 @@
                 eventName: tracking.eventName,
                 eventStatus: 'Canceled',
                 betStatus: finalBetStatus,
-                updateTime: lastStatus.dateUTC
+                updateTime: lastStatus.dateUTC,
+                totalEventsInBet: tracking.betId ? (betEventCount.get(tracking.betId) || 1) : 1
               });
             }
           }
@@ -485,10 +509,12 @@
         const defaultReasonText = resettlementReasonOptions[resettlementReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
-        const isMultiEvent = resettlements.length > 1;
-        const enSubject = isMultiEvent ? 'The selections have' : 'The bet has';
-        const cnSubject = isMultiEvent ? '线注' : '注单';
-        const krSubject = isMultiEvent ? '라인' : '베팅';
+        const isMultiEventBet = resettlements.some(item => item.totalEventsInBet > 1);
+        const enSubject = isMultiEventBet
+          ? (resettlements.length > 1 ? 'The selections have' : 'The selection has')
+          : 'The bet has';
+        const cnSubject = isMultiEventBet ? '线注' : '注单';
+        const krSubject = isMultiEventBet ? '라인' : '베팅';
         let englishReport = `Thank you for waiting. ${enSubject} been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
         let chineseReport = `${cnSubject}已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
         let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
@@ -553,10 +579,12 @@
         const defaultReasonText = cancellationReasonOptions[cancellationReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
-        const isMultiEvent = cancellations.length > 1;
-        const enSubject = isMultiEvent ? 'The selections have' : 'The bet has';
-        const cnSubject = isMultiEvent ? '线注' : '注单';
-        const krSubject = isMultiEvent ? '라인' : '베팅';
+        const isMultiEventBet = cancellations.some(item => item.totalEventsInBet > 1);
+        const enSubject = isMultiEventBet
+          ? (cancellations.length > 1 ? 'The selections have' : 'The selection has')
+          : 'The bet has';
+        const cnSubject = isMultiEventBet ? '线注' : '注单';
+        const krSubject = isMultiEventBet ? '라인' : '베팅';
         let englishReport = `Thank you for waiting. ${enSubject} been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
         let chineseReport = `${cnSubject}已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
         let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
