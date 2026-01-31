@@ -485,9 +485,13 @@
         const defaultReasonText = resettlementReasonOptions[resettlementReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
-        let englishReport = `Thank you for waiting. The bet has been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
-        let chineseReport = `注单已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
-        let koreanReport = `기다려 주셔서 감사합니다. 베팅이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
+        const isMultiEvent = resettlements.length > 1;
+        const enSubject = isMultiEvent ? 'The selections have' : 'The bet has';
+        const cnSubject = isMultiEvent ? '线注' : '注单';
+        const krSubject = isMultiEvent ? '라인' : '베팅';
+        let englishReport = `Thank you for waiting. ${enSubject} been resettled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
+        let chineseReport = `${cnSubject}已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
+        let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         resettlements.forEach((item, index) => {
           const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
@@ -549,9 +553,13 @@
         const defaultReasonText = cancellationReasonOptions[cancellationReasonTemplate];
         const nameSuffix = userName ? ` - ${userName}` : '';
 
-        let englishReport = `Thank you for waiting. The bet has been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
-        let chineseReport = `注单已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
-        let koreanReport = `기다려 주셔서 감사합니다. 베팅이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
+        const isMultiEvent = cancellations.length > 1;
+        const enSubject = isMultiEvent ? 'The selections have' : 'The bet has';
+        const cnSubject = isMultiEvent ? '线注' : '注单';
+        const krSubject = isMultiEvent ? '라인' : '베팅';
+        let englishReport = `Thank you for waiting. ${enSubject} been canceled but BO needs 5-10 mins to be updated. Please check again then. Thank you.${nameSuffix}\n\n`;
+        let chineseReport = `${cnSubject}已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
+        let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
         cancellations.forEach((item, index) => {
           // Use custom reason for this event if provided, otherwise use default
@@ -664,7 +672,7 @@
 
         try {
           const textArea = document.createElement('textarea');
-          textArea.value = results[language];
+          textArea.value = results[language].trimEnd();
           textArea.style.position = 'fixed';
           textArea.style.left = '-999999px';
           textArea.style.top = '-999999px';
