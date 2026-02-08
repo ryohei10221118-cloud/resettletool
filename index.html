@@ -529,6 +529,11 @@
         let chineseReport = `${cnSubject}已重新结算，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
         let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 재정산되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
+        // Event-only reports (without quick reply intro)
+        let englishEventOnly = '';
+        let chineseEventOnly = '';
+        let koreanEventOnly = '';
+
         resettlements.forEach((item, index) => {
           const statusHistoryEN = translateStatusHistory(item.statusHistory, 'english');
           const statusHistoryCN = translateStatusHistory(item.statusHistory, 'chinese');
@@ -542,38 +547,34 @@
           const eventFieldCN = resettlements.length > 1 ? `赛事${index + 1}` : '赛事';
           const eventFieldKR = resettlements.length > 1 ? `이벤트${index + 1}` : '이벤트';
 
-          englishReport += `Bet ID: ${item.betId}\n`;
-          englishReport += `${eventFieldEN}: ${item.eventName}\n`;
-          englishReport += `Event Resettlement History: ${statusHistoryEN}\n`;
-          englishReport += `Bet Status: ${item.betStatus}\n`;
-          englishReport += `First Settlement Time: ${formatDateTime(item.firstSettlementTime)}\n`;
-          englishReport += `Last Update Time: ${formatDateTime(item.lastUpdateTime)}\n`;
-          englishReport += `Reason for Resettlement: ${reasonText.english}`;
-          if (index < resettlements.length - 1) englishReport += '\n\n';
+          const enBlock = `Bet ID: ${item.betId}\n${eventFieldEN}: ${item.eventName}\nEvent Resettlement History: ${statusHistoryEN}\nBet Status: ${item.betStatus}\nFirst Settlement Time: ${formatDateTime(item.firstSettlementTime)}\nLast Update Time: ${formatDateTime(item.lastUpdateTime)}\nReason for Resettlement: ${reasonText.english}`;
+          const cnBlock = `注单号：${item.betId}\n${eventFieldCN}：${item.eventName}\n赛事重新结算历史：${statusHistoryCN}\n注单状态：${translateStatus(item.betStatus, 'chinese')}\n第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n最后更新时间：${formatDateTime(item.lastUpdateTime)}\n重新结算原因：${reasonText.chinese}`;
+          const krBlock = `베팅 번호: ${item.betId}\n${eventFieldKR}: ${item.eventName}\n경기 재정산 내역: ${statusHistoryKR}\n베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n재정산 사유: ${reasonText.korean}`;
 
-          chineseReport += `注单号：${item.betId}\n`;
-          chineseReport += `${eventFieldCN}：${item.eventName}\n`;
-          chineseReport += `赛事重新结算历史：${statusHistoryCN}\n`;
-          chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
-          chineseReport += `第一次结算时间：${formatDateTime(item.firstSettlementTime)}\n`;
-          chineseReport += `最后更新时间：${formatDateTime(item.lastUpdateTime)}\n`;
-          chineseReport += `重新结算原因：${reasonText.chinese}`;
-          if (index < resettlements.length - 1) chineseReport += '\n\n';
+          englishReport += enBlock;
+          chineseReport += cnBlock;
+          koreanReport += krBlock;
+          englishEventOnly += enBlock;
+          chineseEventOnly += cnBlock;
+          koreanEventOnly += krBlock;
 
-          koreanReport += `베팅 번호: ${item.betId}\n`;
-          koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
-          koreanReport += `경기 재정산 내역: ${statusHistoryKR}\n`;
-          koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
-          koreanReport += `첫 번째 정산 시간: ${formatDateTime(item.firstSettlementTime)}\n`;
-          koreanReport += `마지막 업데이트 시간: ${formatDateTime(item.lastUpdateTime)}\n`;
-          koreanReport += `재정산 사유: ${reasonText.korean}`;
-          if (index < resettlements.length - 1) koreanReport += '\n\n';
+          if (index < resettlements.length - 1) {
+            englishReport += '\n\n';
+            chineseReport += '\n\n';
+            koreanReport += '\n\n';
+            englishEventOnly += '\n\n';
+            chineseEventOnly += '\n\n';
+            koreanEventOnly += '\n\n';
+          }
         });
 
         return {
           english: englishReport,
           chinese: chineseReport,
-          korean: koreanReport
+          korean: koreanReport,
+          englishEventOnly,
+          chineseEventOnly,
+          koreanEventOnly
         };
       };
 
@@ -599,6 +600,11 @@
         let chineseReport = `${cnSubject}已取消，后台更新需要5-10分钟，烦请贵司稍等刷新查看，谢谢。${nameSuffix}\n\n`;
         let koreanReport = `기다려 주셔서 감사합니다. ${krSubject}이 취소되었지만 BO가 업데이트되는 데 5-10분 정도 소요됩니다. 그 후에 다시 확인해 주시기 바랍니다. 감사합니다.${nameSuffix}\n\n`;
 
+        // Event-only reports (without quick reply intro)
+        let englishEventOnly = '';
+        let chineseEventOnly = '';
+        let koreanEventOnly = '';
+
         cancellations.forEach((item, index) => {
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : cancellationReasonTemplate;
@@ -608,35 +614,34 @@
           const eventFieldCN = cancellations.length > 1 ? `赛事${index + 1}` : '赛事';
           const eventFieldKR = cancellations.length > 1 ? `이벤트${index + 1}` : '이벤트';
 
-          englishReport += `Bet ID: ${item.betId}\n`;
-          englishReport += `${eventFieldEN}: ${item.eventName}\n`;
-          englishReport += `Event Status: ${item.eventStatus}\n`;
-          englishReport += `Bet Status: ${item.betStatus}\n`;
-          englishReport += `Update Time: ${formatDateTime(item.updateTime)}\n`;
-          englishReport += `Reason of Cancelation: ${reasonText.english}`;
-          if (index < cancellations.length - 1) englishReport += '\n\n';
+          const enBlock = `Bet ID: ${item.betId}\n${eventFieldEN}: ${item.eventName}\nEvent Status: ${item.eventStatus}\nBet Status: ${item.betStatus}\nUpdate Time: ${formatDateTime(item.updateTime)}\nReason of Cancelation: ${reasonText.english}`;
+          const cnBlock = `注单号：${item.betId}\n${eventFieldCN}：${item.eventName}\n赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n注单状态：${translateStatus(item.betStatus, 'chinese')}\n更新时间：${formatDateTime(item.updateTime)}\n取消原因：${reasonText.chinese}`;
+          const krBlock = `베팅 ID: ${item.betId}\n${eventFieldKR}: ${item.eventName}\n이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n업데이트 시간: ${formatDateTime(item.updateTime)}\n취소 사유: ${reasonText.korean}`;
 
-          chineseReport += `注单号：${item.betId}\n`;
-          chineseReport += `${eventFieldCN}：${item.eventName}\n`;
-          chineseReport += `赛事状态：${translateStatus(item.eventStatus, 'chinese')}\n`;
-          chineseReport += `注单状态：${translateStatus(item.betStatus, 'chinese')}\n`;
-          chineseReport += `更新时间：${formatDateTime(item.updateTime)}\n`;
-          chineseReport += `取消原因：${reasonText.chinese}`;
-          if (index < cancellations.length - 1) chineseReport += '\n\n';
+          englishReport += enBlock;
+          chineseReport += cnBlock;
+          koreanReport += krBlock;
+          englishEventOnly += enBlock;
+          chineseEventOnly += cnBlock;
+          koreanEventOnly += krBlock;
 
-          koreanReport += `베팅 ID: ${item.betId}\n`;
-          koreanReport += `${eventFieldKR}: ${item.eventName}\n`;
-          koreanReport += `이벤트 상태: ${translateStatus(item.eventStatus, 'korean')}\n`;
-          koreanReport += `베팅 상태: ${translateStatus(item.betStatus, 'korean')}\n`;
-          koreanReport += `업데이트 시간: ${formatDateTime(item.updateTime)}\n`;
-          koreanReport += `취소 사유: ${reasonText.korean}`;
-          if (index < cancellations.length - 1) koreanReport += '\n\n';
+          if (index < cancellations.length - 1) {
+            englishReport += '\n\n';
+            chineseReport += '\n\n';
+            koreanReport += '\n\n';
+            englishEventOnly += '\n\n';
+            chineseEventOnly += '\n\n';
+            koreanEventOnly += '\n\n';
+          }
         });
 
         return {
           english: englishReport,
           chinese: chineseReport,
-          korean: koreanReport
+          korean: koreanReport,
+          englishEventOnly,
+          chineseEventOnly,
+          koreanEventOnly
         };
       };
 
@@ -723,6 +728,37 @@
 
           if (successful) {
             setCopyStatus(`已复制${language === 'english' ? '英文' : language === 'chinese' ? '中文' : '韩文'}内容`);
+            setTimeout(() => setCopyStatus(''), 2000);
+          } else {
+            setCopyStatus('复制失败，请手动复制');
+            setTimeout(() => setCopyStatus(''), 3000);
+          }
+        } catch (err) {
+          console.error('复制失败:', err);
+          setCopyStatus('复制失败，请手动复制');
+          setTimeout(() => setCopyStatus(''), 3000);
+        }
+      };
+
+      const handleCopyEventOnly = (language) => {
+        const key = language + 'EventOnly';
+        if (!results || !results[key]) return;
+
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = results[key].replace(/[\r\n]+$/, '');
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            setCopyStatus(`已复制${language === 'english' ? '英文' : language === 'chinese' ? '中文' : '韩文'}赛事信息（不含快速回复）`);
             setTimeout(() => setCopyStatus(''), 2000);
           } else {
             setCopyStatus('复制失败，请手动复制');
@@ -1208,28 +1244,53 @@
                     分析结果
                   </h2>
                   {results && (
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => handleCopy('english')}
-                        className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 flex items-center text-sm cursor-pointer"
-                      >
-                        <span className="mr-1">📋</span>
-                        复制英文
-                      </button>
-                      <button
-                        onClick={() => handleCopy('chinese')}
-                        className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center text-sm cursor-pointer"
-                      >
-                        <span className="mr-1">📋</span>
-                        复制中文
-                      </button>
-                      <button
-                        onClick={() => handleCopy('korean')}
-                        className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 flex items-center text-sm cursor-pointer"
-                      >
-                        <span className="mr-1">📋</span>
-                        复制韩文
-                      </button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleCopy('english')}
+                          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📋</span>
+                          复制英文
+                        </button>
+                        <button
+                          onClick={() => handleCopy('chinese')}
+                          className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📋</span>
+                          复制中文
+                        </button>
+                        <button
+                          onClick={() => handleCopy('korean')}
+                          className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📋</span>
+                          复制韩文
+                        </button>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleCopyEventOnly('english')}
+                          className="border-2 border-blue-600 text-blue-600 bg-white py-2 px-4 rounded-md hover:bg-blue-50 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📄</span>
+                          赛事信息 EN
+                        </button>
+                        <button
+                          onClick={() => handleCopyEventOnly('chinese')}
+                          className="border-2 border-green-600 text-green-600 bg-white py-2 px-4 rounded-md hover:bg-green-50 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📄</span>
+                          赛事信息 中文
+                        </button>
+                        <button
+                          onClick={() => handleCopyEventOnly('korean')}
+                          className="border-2 border-purple-600 text-purple-600 bg-white py-2 px-4 rounded-md hover:bg-purple-50 flex items-center text-sm cursor-pointer"
+                        >
+                          <span className="mr-1">📄</span>
+                          赛事信息 한국어
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
