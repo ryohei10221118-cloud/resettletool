@@ -93,6 +93,11 @@
         return stored || '';
       });
 
+      const [operatorName, setOperatorName] = useState(() => {
+        const stored = localStorage.getItem('operatorName');
+        return stored || '';
+      });
+
       useEffect(() => {
         localStorage.setItem('customResettlementReasons', JSON.stringify(customResettlementReasons));
       }, [customResettlementReasons]);
@@ -104,6 +109,10 @@
       useEffect(() => {
         localStorage.setItem('userName', userName);
       }, [userName]);
+
+      useEffect(() => {
+        localStorage.setItem('operatorName', operatorName);
+      }, [operatorName]);
 
       const capitalizeFirstLetter = (str) => {
         if (!str) return str;
@@ -290,6 +299,10 @@
 
               if (!lineId || !eventName) return;
 
+              const branchName = selection.getAttribute('BranchName') || '';
+              const leagueName = selection.getAttribute('LeagueName') || '';
+              const eventTypeName = selection.getAttribute('EventTypeName') || '';
+
               const changes = selection.getElementsByTagName('Change');
               Array.from(changes).forEach(change => {
                 const oldStatus = change.getAttribute('OldStatus');
@@ -305,6 +318,9 @@
                 if (!lineIdTracking.has(lineId)) {
                   lineIdTracking.set(lineId, {
                     eventName,
+                    branchName,
+                    leagueName,
+                    eventTypeName,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : ''
                   });
@@ -360,6 +376,9 @@
               resettlements.push({
                 betId: tracking.betId || 'N/A',
                 eventName: tracking.eventName,
+                sport: tracking.branchName,
+                league: tracking.leagueName,
+                market: tracking.eventTypeName,
                 statusHistory: statusChanges,
                 betStatus: finalBetStatus,
                 firstSettlementTime: tracking.statusHistory[0].dateUTC,
@@ -771,6 +790,58 @@
         }
       };
 
+      const handleCopyTableData = () => {
+        if (!results || !results.analyzedData) return;
+
+        const reasonOptions = analysisType === 'resettlement' ? resettlementReasonOptions : cancellationReasonOptions;
+        const defaultReasonKey = analysisType === 'resettlement' ? resettlementReasonTemplate : cancellationReasonTemplate;
+
+        const rows = results.analyzedData.map((item, index) => {
+          const reasonKey = perEventReasons[index] !== undefined ? perEventReasons[index] : defaultReasonKey;
+          const reasonText = reasonOptions[reasonKey]?.english || '';
+          const date = item.firstSettlementTime ? item.firstSettlementTime.split('T')[0] : '';
+
+          return [
+            operatorName,
+            item.betId || '',
+            reasonText,
+            item.sport || '',
+            item.league || '',
+            item.eventName || '',
+            item.market || '',
+            userName
+          ].join('\t');
+        });
+
+        const tableData = rows.join('\n');
+
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = tableData;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            setCopyStatus(`已复制 ${rows.length} 笔表格数据（可直接贴入Excel/Google Sheets）`);
+            setTimeout(() => setCopyStatus(''), 2000);
+          } else {
+            setCopyStatus('复制失败，请手动复制');
+            setTimeout(() => setCopyStatus(''), 3000);
+          }
+        } catch (err) {
+          console.error('复制失败:', err);
+          setCopyStatus('复制失败，请手动复制');
+          setTimeout(() => setCopyStatus(''), 3000);
+        }
+      };
+
       const handleAddReason = () => {
         if (!newReason.english || !newReason.chinese || !newReason.korean) {
           alert('请填写完整的原因信息');
@@ -1168,22 +1239,41 @@
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      👤 绑定名字
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={`例如: ${namePlaceholder} （名字会显示在快速回复后面）`}
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {userName && (
-                      <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                        示例: Thank you for waiting... - <span className="font-semibold">{userName}</span>
-                      </div>
-                    )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        👤 绑定名字
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={`例如: ${namePlaceholder}`}
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {userName && (
+                        <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                          示例: Thank you for waiting... - <span className="font-semibold">{userName}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🏢 Operator
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="例如: w88seamless"
+                        value={operatorName}
+                        onChange={(e) => setOperatorName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {operatorName && (
+                        <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                          表格数据将使用: <span className="font-semibold">{operatorName}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -1286,6 +1376,13 @@
                       >
                         <span className="mr-1">📄</span>
                         赛事信息 한국어
+                      </button>
+                      <button
+                        onClick={handleCopyTableData}
+                        className="bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 flex items-center justify-center text-sm cursor-pointer min-w-[120px]"
+                      >
+                        <span className="mr-1">📊</span>
+                        复制表格数据
                       </button>
                     </div>
                   )}
