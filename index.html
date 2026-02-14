@@ -290,6 +290,10 @@
 
               if (!lineId || !eventName) return;
 
+              const branchName = selection.getAttribute('BranchName') || '';
+              const leagueName = selection.getAttribute('LeagueName') || '';
+              const eventTypeName = selection.getAttribute('EventTypeName') || '';
+
               const changes = selection.getElementsByTagName('Change');
               Array.from(changes).forEach(change => {
                 const oldStatus = change.getAttribute('OldStatus');
@@ -305,6 +309,9 @@
                 if (!lineIdTracking.has(lineId)) {
                   lineIdTracking.set(lineId, {
                     eventName,
+                    branchName,
+                    leagueName,
+                    eventTypeName,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : ''
                   });
@@ -360,6 +367,9 @@
               resettlements.push({
                 betId: tracking.betId || 'N/A',
                 eventName: tracking.eventName,
+                sport: tracking.branchName,
+                league: tracking.leagueName,
+                market: tracking.eventTypeName,
                 statusHistory: statusChanges,
                 betStatus: finalBetStatus,
                 firstSettlementTime: tracking.statusHistory[0].dateUTC,
@@ -759,6 +769,58 @@
 
           if (successful) {
             setCopyStatus(`已复制${language === 'english' ? '英文' : language === 'chinese' ? '中文' : '韩文'}赛事信息（不含快速回复）`);
+            setTimeout(() => setCopyStatus(''), 2000);
+          } else {
+            setCopyStatus('复制失败，请手动复制');
+            setTimeout(() => setCopyStatus(''), 3000);
+          }
+        } catch (err) {
+          console.error('复制失败:', err);
+          setCopyStatus('复制失败，请手动复制');
+          setTimeout(() => setCopyStatus(''), 3000);
+        }
+      };
+
+      const handleCopyTableData = () => {
+        if (!results || !results.analyzedData) return;
+
+        const reasonOptions = analysisType === 'resettlement' ? resettlementReasonOptions : cancellationReasonOptions;
+        const defaultReasonKey = analysisType === 'resettlement' ? resettlementReasonTemplate : cancellationReasonTemplate;
+
+        const rows = results.analyzedData.map((item, index) => {
+          const reasonKey = perEventReasons[index] !== undefined ? perEventReasons[index] : defaultReasonKey;
+          const reasonText = reasonOptions[reasonKey]?.english || '';
+          const date = item.firstSettlementTime ? item.firstSettlementTime.split('T')[0] : '';
+
+          return [
+            '',
+            item.betId || '',
+            reasonText,
+            item.sport || '',
+            item.league || '',
+            item.eventName || '',
+            item.market || '',
+            userName
+          ].join('\t');
+        });
+
+        const tableData = rows.join('\n');
+
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = tableData;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            setCopyStatus(`已复制 ${rows.length} 笔表格数据（可直接贴入Excel/Google Sheets）`);
             setTimeout(() => setCopyStatus(''), 2000);
           } else {
             setCopyStatus('复制失败，请手动复制');
@@ -1286,6 +1348,13 @@
                       >
                         <span className="mr-1">📄</span>
                         赛事信息 한국어
+                      </button>
+                      <button
+                        onClick={handleCopyTableData}
+                        className="bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 flex items-center justify-center text-sm cursor-pointer min-w-[120px]"
+                      >
+                        <span className="mr-1">📊</span>
+                        复制表格数据
                       </button>
                     </div>
                   )}
