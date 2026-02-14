@@ -439,6 +439,10 @@
 
               if (!lineId || !eventName) return;
 
+              const branchName = selection.getAttribute('BranchName') || '';
+              const leagueName = selection.getAttribute('LeagueName') || '';
+              const eventTypeName = selection.getAttribute('EventTypeName') || '';
+
               const changes = selection.getElementsByTagName('Change');
               Array.from(changes).forEach(change => {
                 const newStatus = change.getAttribute('NewStatus');
@@ -453,6 +457,9 @@
                 if (!lineIdTracking.has(lineId)) {
                   lineIdTracking.set(lineId, {
                     eventName,
+                    branchName,
+                    leagueName,
+                    eventTypeName,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : ''
                   });
@@ -505,6 +512,9 @@
               cancellations.push({
                 betId: tracking.betId || 'N/A',
                 eventName: tracking.eventName,
+                sport: tracking.branchName,
+                league: tracking.leagueName,
+                market: tracking.eventTypeName,
                 eventStatus: 'Canceled',
                 betStatus: finalBetStatus,
                 updateTime: lastStatus.dateUTC,
