@@ -1551,6 +1551,40 @@
             </div>
           </div>
 
+          {/* Floating Analysis Type Toggle Bubble */}
+          <button
+            onClick={() => {
+              const newType = analysisType === 'resettlement' ? 'cancellation' : 'resettlement';
+              setAnalysisType(newType);
+              setShowReasonBubble(false);
+            }}
+            style={{
+              position: 'fixed',
+              bottom: '150px',
+              right: '30px',
+              zIndex: 40,
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              background: analysisType === 'resettlement' ? '#F59E0B' : '#EF4444',
+              color: 'white',
+              border: 'none',
+              fontSize: '18px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: analysisType === 'resettlement'
+                ? '0 4px 15px rgba(245,158,11,0.4)'
+                : '0 4px 15px rgba(239,68,68,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
+            }}
+            title={analysisType === 'resettlement' ? '当前：重新结算（点击切换为取消）' : '当前：取消（点击切换为重新结算）'}
+          >
+            {analysisType === 'resettlement' ? '重' : '取'}
+          </button>
+
           {/* Floating R Bubble - Quick Reason Selector */}
           <div ref={reasonBubbleRef} style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
             {showReasonBubble && (
