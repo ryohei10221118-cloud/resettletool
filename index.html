@@ -97,17 +97,14 @@
         prevReasonRef.current = { r: resettlementReasonTemplate, c: cancellationReasonTemplate };
 
         if (changed && results && results.analyzedData) {
-          let reports = {};
-          const customReasonsArray = {};
-          Object.keys(perEventReasons).forEach(index => {
-            customReasonsArray[parseInt(index)] = perEventReasons[index];
-          });
-          const hasCustom = Object.keys(customReasonsArray).length > 0;
+          // Clear per-event overrides — use the latest R bubble selection for all events
+          setPerEventReasons({});
 
+          let reports = {};
           if (analysisType === 'resettlement') {
-            reports = generateResettlementReports(results.analyzedData, hasCustom ? customReasonsArray : null);
+            reports = generateResettlementReports(results.analyzedData, null);
           } else {
-            reports = generateCancellationReports(results.analyzedData, hasCustom ? customReasonsArray : null);
+            reports = generateCancellationReports(results.analyzedData, null);
           }
           reports.analyzedData = results.analyzedData;
           reports.eventCount = results.eventCount;
