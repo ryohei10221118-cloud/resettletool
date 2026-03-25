@@ -81,13 +81,46 @@
       const [showScrollTop, setShowScrollTop] = useState(false);
 
       // Track scroll position for floating buttons
+      const reasonBubbleRef = React.useRef(null);
       React.useEffect(() => {
         const handleScroll = () => {
           setShowScrollTop(window.scrollY > 300);
         };
+        const handleClickOutside = (e) => {
+          if (reasonBubbleRef.current && !reasonBubbleRef.current.contains(e.target)) {
+            setShowReasonBubble(false);
+          }
+        };
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+          window.removeEventListener('scroll', handleScroll);
+          document.removeEventListener('mousedown', handleClickOutside);
+        };
       }, []);
+
+      // Auto-regenerate results when reason template changes (e.g. from R bubble)
+      const prevReasonRef = React.useRef({ r: resettlementReasonTemplate, c: cancellationReasonTemplate });
+      React.useEffect(() => {
+        const prev = prevReasonRef.current;
+        const changed = prev.r !== resettlementReasonTemplate || prev.c !== cancellationReasonTemplate;
+        prevReasonRef.current = { r: resettlementReasonTemplate, c: cancellationReasonTemplate };
+
+        if (changed && results && results.analyzedData) {
+          // Clear per-event overrides — use the latest R bubble selection for all events
+          setPerEventReasons({});
+
+          let reports = {};
+          if (analysisType === 'resettlement') {
+            reports = generateResettlementReports(results.analyzedData, null);
+          } else {
+            reports = generateCancellationReports(results.analyzedData, null);
+          }
+          reports.analyzedData = results.analyzedData;
+          reports.eventCount = results.eventCount;
+          setResults(reports);
+        }
+      }, [resettlementReasonTemplate, cancellationReasonTemplate]);
 
       const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
         const stored = localStorage.getItem('customResettlementReasons');
@@ -1519,7 +1552,7 @@
           </div>
 
           {/* Floating R Bubble - Quick Reason Selector */}
-          <div style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
+          <div ref={reasonBubbleRef} style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
             {showReasonBubble && (
               <div style={{
                 position: 'absolute',
