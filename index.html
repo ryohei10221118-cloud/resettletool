@@ -81,12 +81,22 @@
       const [showScrollTop, setShowScrollTop] = useState(false);
 
       // Track scroll position for floating buttons
+      const reasonBubbleRef = React.useRef(null);
       React.useEffect(() => {
         const handleScroll = () => {
           setShowScrollTop(window.scrollY > 300);
         };
+        const handleClickOutside = (e) => {
+          if (reasonBubbleRef.current && !reasonBubbleRef.current.contains(e.target)) {
+            setShowReasonBubble(false);
+          }
+        };
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+          window.removeEventListener('scroll', handleScroll);
+          document.removeEventListener('mousedown', handleClickOutside);
+        };
       }, []);
 
       // Auto-regenerate results when reason template changes (e.g. from R bubble)
@@ -1542,7 +1552,7 @@
           </div>
 
           {/* Floating R Bubble - Quick Reason Selector */}
-          <div style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
+          <div ref={reasonBubbleRef} style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
             {showReasonBubble && (
               <div style={{
                 position: 'absolute',
