@@ -77,6 +77,17 @@
       const [deleteConfirmKey, setDeleteConfirmKey] = useState(null);
       const [showPerEventReasons, setShowPerEventReasons] = useState(false);
       const [perEventReasons, setPerEventReasons] = useState({});
+      const [showReasonBubble, setShowReasonBubble] = useState(false);
+      const [showScrollTop, setShowScrollTop] = useState(false);
+
+      // Track scroll position for floating buttons
+      React.useEffect(() => {
+        const handleScroll = () => {
+          setShowScrollTop(window.scrollY > 300);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
 
       const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
         const stored = localStorage.getItem('customResettlementReasons');
@@ -1506,6 +1517,126 @@
               </div>
             </div>
           </div>
+
+          {/* Floating R Bubble - Quick Reason Selector */}
+          <div style={{ position: 'fixed', bottom: '90px', right: '30px', zIndex: 40 }}>
+            {showReasonBubble && (
+              <div style={{
+                position: 'absolute',
+                bottom: '60px',
+                right: '0',
+                width: '280px',
+                background: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                padding: '16px',
+                animation: 'fadeInUp 0.2s ease'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>
+                  {analysisType === 'resettlement' ? '⚡ 快速选择重新结算原因' : '⚡ 快速选择取消原因'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {(() => {
+                    const options = analysisType === 'resettlement' ? resettlementReasonOptions : cancellationReasonOptions;
+                    const defaults = analysisType === 'resettlement' ? defaultResettlementReasons : defaultCancellationReasons;
+                    const currentValue = analysisType === 'resettlement' ? resettlementReasonTemplate : cancellationReasonTemplate;
+                    const setter = analysisType === 'resettlement' ? setResettlementReasonTemplate : setCancellationReasonTemplate;
+
+                    const allKeys = ['', '_custom_fill', ...Object.keys(options).filter(k => k !== '' && k !== '_custom_fill')];
+
+                    return allKeys.map(key => {
+                      const reason = options[key];
+                      const isCustom = key !== '' && key !== '_custom_fill' && !defaults[key];
+                      const isActive = currentValue === key;
+                      let label;
+                      if (key === '') label = '确认后提供 (预设)';
+                      else if (key === '_custom_fill') label = '✏️ 自行填写 (留空)';
+                      else label = (isCustom ? '⭐ ' : '') + (reason?.english || key);
+
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => { setter(key); setShowReasonBubble(false); }}
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                            borderRadius: '8px',
+                            border: isActive ? '2px solid #3B82F6' : '1px solid #E5E7EB',
+                            background: isActive ? '#EFF6FF' : '#F9FAFB',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            fontWeight: isActive ? 600 : 400,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {isActive && '✓ '}{label}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setShowReasonBubble(!showReasonBubble)}
+              style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: showReasonBubble ? '#3B82F6' : '#6366F1',
+                color: 'white',
+                border: 'none',
+                fontSize: '20px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(99,102,241,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+              title="快速选择原因"
+            >
+              R
+            </button>
+          </div>
+
+          {/* Back to Top Button */}
+          {showScrollTop && (
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              style={{
+                position: 'fixed',
+                bottom: '30px',
+                right: '30px',
+                zIndex: 40,
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: '#6B7280',
+                color: 'white',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(107,114,128,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+              title="返回页首"
+            >
+              ↑
+            </button>
+          )}
+
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes fadeInUp {
+              from { opacity: 0; transform: translateY(10px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}} />
 
           <div className="mt-8 bg-blue-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-3">使用说明</h3>
