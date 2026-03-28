@@ -122,6 +122,38 @@
         }
       }, [resettlementReasonTemplate, cancellationReasonTemplate]);
 
+      // Re-analyze raw JSON data when analysis type changes via bubble
+      const prevTypeRef = React.useRef(analysisType);
+      React.useEffect(() => {
+        if (prevTypeRef.current === analysisType) return;
+        prevTypeRef.current = analysisType;
+
+        if (!jsonData.trim() || !results) return;
+
+        try {
+          const data = JSON.parse(jsonData);
+          if (!Array.isArray(data)) return;
+
+          setShowPerEventReasons(false);
+          setPerEventReasons({});
+
+          let reports = {};
+          let analyzedData = [];
+          if (analysisType === 'resettlement') {
+            analyzedData = analyzeResettlements(data);
+            reports = generateResettlementReports(analyzedData);
+          } else {
+            analyzedData = analyzeCancellations(data);
+            reports = generateCancellationReports(analyzedData);
+          }
+          reports.analyzedData = analyzedData;
+          reports.eventCount = analyzedData.length;
+          setResults(reports);
+        } catch (e) {
+          // Ignore parse errors here; user can re-click analyze
+        }
+      }, [analysisType]);
+
       const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
         const stored = localStorage.getItem('customResettlementReasons');
         return stored ? JSON.parse(stored) : {};
