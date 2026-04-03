@@ -313,6 +313,7 @@
       const analyzeResettlements = (data) => {
         const lineIdTracking = new Map();
         const betStatusTracking = new Map();
+        const betNumberOfLines = new Map();
 
         const settlementRecords = data.filter(item =>
           item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
@@ -323,6 +324,28 @@
 
           try {
             const xmlDoc = parseXML(record.reqparams);
+
+            // Track NumberOfLines from Purchase elements
+            const purchases = xmlDoc.getElementsByTagName('Purchase');
+            Array.from(purchases).forEach(purchase => {
+              const numLines = parseInt(purchase.getAttribute('NumberOfLines') || '0', 10);
+              if (numLines > 0) {
+                const purchaseSelections = purchase.getElementsByTagName('Selection');
+                Array.from(purchaseSelections).forEach(sel => {
+                  const changes = sel.getElementsByTagName('Change');
+                  Array.from(changes).forEach(change => {
+                    const bets = change.getElementsByTagName('Bet');
+                    if (bets.length > 0) {
+                      const bid = bets[0].getAttribute('ID');
+                      if (bid && bid !== '0') {
+                        betNumberOfLines.set(bid, Math.max(betNumberOfLines.get(bid) || 0, numLines));
+                      }
+                    }
+                  });
+                });
+              }
+            });
+
             const selections = xmlDoc.getElementsByTagName('Selection');
 
             Array.from(selections).forEach(selection => {
@@ -450,7 +473,7 @@
                 betStatus: finalBetStatus,
                 firstSettlementTime: tracking.statusHistory[0].dateUTC,
                 lastUpdateTime: tracking.statusHistory[tracking.statusHistory.length - 1].dateUTC,
-                totalEventsInBet: tracking.betId ? (betEventCount.get(tracking.betId) || 1) : 1
+                totalEventsInBet: tracking.betId ? Math.max(betEventCount.get(tracking.betId) || 1, betNumberOfLines.get(tracking.betId) || 1) : 1
               });
             }
           }
@@ -462,6 +485,7 @@
       const analyzeCancellations = (data) => {
         const lineIdTracking = new Map();
         const betStatusTracking = new Map();
+        const betNumberOfLines = new Map();
 
         const settlementRecords = data.filter(item =>
           item.operationType === 'credit_customer' || item.operationType === 'debit_customer'
@@ -472,6 +496,28 @@
 
           try {
             const xmlDoc = parseXML(record.reqparams);
+
+            // Track NumberOfLines from Purchase elements
+            const purchases = xmlDoc.getElementsByTagName('Purchase');
+            Array.from(purchases).forEach(purchase => {
+              const numLines = parseInt(purchase.getAttribute('NumberOfLines') || '0', 10);
+              if (numLines > 0) {
+                const purchaseSelections = purchase.getElementsByTagName('Selection');
+                Array.from(purchaseSelections).forEach(sel => {
+                  const changes = sel.getElementsByTagName('Change');
+                  Array.from(changes).forEach(change => {
+                    const bets = change.getElementsByTagName('Bet');
+                    if (bets.length > 0) {
+                      const bid = bets[0].getAttribute('ID');
+                      if (bid && bid !== '0') {
+                        betNumberOfLines.set(bid, Math.max(betNumberOfLines.get(bid) || 0, numLines));
+                      }
+                    }
+                  });
+                });
+              }
+            });
+
             const selections = xmlDoc.getElementsByTagName('Selection');
 
             Array.from(selections).forEach(selection => {
@@ -594,7 +640,7 @@
                 eventStatus: 'Canceled',
                 betStatus: finalBetStatus,
                 updateTime: lastStatus.dateUTC,
-                totalEventsInBet: tracking.betId ? (betEventCount.get(tracking.betId) || 1) : 1
+                totalEventsInBet: tracking.betId ? Math.max(betEventCount.get(tracking.betId) || 1, betNumberOfLines.get(tracking.betId) || 1) : 1
               });
             }
           }
