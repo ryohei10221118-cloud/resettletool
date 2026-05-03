@@ -261,6 +261,48 @@
         return parser.parseFromString(xmlString, "text/xml");
       };
 
+      const siteIdToOperator = {
+        20541: 'Winboxwlt', 20540: 'Bitsler', 20539: 'ExoLabs', 20538: 'unicasino00',
+        20537: 'AluminisSL', 20531: 'INSERTGAMESL', 20528: '100panalo', 20529: 'S5Game',
+        20526: 'QueenNinja', 20525: 'BCGameth', 20523: 'Filbet', 20521: 'GlobalTech',
+        20520: 'GbetsportWLT', 20515: 'QuantumPlay', 20516: 'HighendKO', 20511: '998v2',
+        20502: 'TopOne', 20504: 'NextralSL', 20500: 'Aone33my', 20498: 'BGJWLT',
+        20497: 'AIXSWL', 20496: 'BGJSL', 20494: 'OXPLAY', 20493: 'Betkuku',
+        20492: 'Liboasia', 20491: 'IBIresell', 20490: 'MClubCredit', 20488: 'ZenithEU',
+        20485: 'KZsports', 20482: '88Wager', 20481: 'INFVN8', 20478: 'V9Betsb',
+        20477: 'RICHAPI', 20475: 'LogicX1', 20474: 'APBsolution', 20473: 'Neftsoft',
+        20471: 'AMBsuperSL', 20470: 'FUNGOIT', 20469: 'GAMTING', 20468: 'IDNUPPRO',
+        20464: 'Deejay', 20459: 'GROUPIG', 20457: 'UFAGOAT', 20455: 'GplayGUFAPlus',
+        20448: 'MPOAIXTW', 20445: 'Nexiux', 20444: 'WGS1688', 20437: 'Casinoplus',
+        20428: 'BITWIN', 20427: 'TitanHubWLT', 20426: 'Aluminis', 20423: 'GA8888',
+        20417: 'GrandEUR', 20416: 'SuperswanZT3', 20415: 'Lazer7', 20413: 'BETEAST',
+        20412: 'Ambnsb', 20407: 'TitanHubSL', 20408: 'HappyAce', 20405: 'Speedix',
+        20402: 'BCGAME', 20410: 'GMAGTOP', 20400: 'Totocloud', 20393: 'COPSports',
+        20382: 'Royalplay', 20376: 'GP416IB88', 20369: 'Honorlink', 20372: 'VedaGaming',
+        20362: '2UPiogroup', 20361: 'Dragonfly', 20360: 'SUPBIT', 20355: 'SuperswanZT2',
+        20346: 'RubyGame', 20344: 'HT88tech', 20343: 'SharpSports', 20342: 'LiveSports',
+        20341: 'YuanSports', 20340: 'IGGroupSL', 20339: 'IGGroupWLT', 20337: 'gwtech',
+        20323: 'StarbetWlt', 20321: 'caerus88', 20319: 'ezbet1', 20316: 'SuperSwanZF1',
+        20394: 'LOTO188betSL', 20313: 'Superswansl', 20311: 'Expimz', 20300: 'SplusSL',
+        20299: 'SplusWLT', 20298: 'AMBFeed', 20293: 'EZbetV2', 20290: 'DGnine',
+        20287: 'XIMAX2', 20285: 'MSports', 20273: 'BT1wallet', 20272: 'BT1seamless',
+        20268: 'SEAGwlt', 20266: 'GBETsportsl', 20265: '7Lucky', 20262: 'w88seamless',
+        20256: 'DCsunrise', 20254: 'LUCASPORTS', 20253: 'NYSPORTS', 25009: 'Wcbgcsl',
+        20244: 'Wcpop1sl', 20243: 'Wcctpsl', 20242: 'Wcctpwlt', 20241: 'Wcpop1wlt',
+        20219: 'KzingSW', 20217: 'Dawoobet', 25000: 'BW88SL', 20208: 'RaiseTechSL',
+        20200: 'SLTest', 20198: 'EZbetSports', 20195: 'WDBwlt', 20191: 'UGSportSL',
+        20189: 'NJCGROUPSL', 20188: 'BetEnjoy (Winka)', 20182: 'GSCFTW', 20177: 'RTNJCWLT',
+        20171: 'RTSeinLuckyCoLtd', 20166: 'RTnova88', 20144: 'XTadmin', 20142: '368Cash',
+        20130: 'LDSports', 20129: 'AISports', 20123: 'WDBBSPORT', 20121: 'BTTB2B',
+        20101: 'Theonebet', 20091: 'TechPlay', 20087: 'M88bsports', 20082: 'Superswanwlt',
+        20078: 'Fun88Sandbox', 20075: 'X2DYNAMIC', 20070: 'FB88Bet', 20063: 'ManbetX',
+        20059: 'Kzing88', 20058: 'AEWL88', 20056: 'Big88com', 20029: '24TechSLM',
+        20027: '777WLT', 20024: 'GPlayG', 20022: 'EMCBet', 20020: 'Aplus777',
+        322: 'SgameTV', 321: 'BtiAsiaWlt', 315: 'RaiseTechWLT', 285: 'JBOSPORTS',
+        266: 'TCGaming', 228: '24Tech', 219: 'Five88', 213: 'Fun88asia',
+        188: '10BetKRSM', 141: 'BTT', 65: 'W88SL'
+      };
+
       const statusTranslations = {
         chinese: {
           'Won': '赢',
@@ -411,6 +453,7 @@
                     branchName,
                     leagueName,
                     eventTypeName,
+                    siteId: record.siteid,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : ''
                   });
@@ -469,6 +512,7 @@
                 sport: tracking.branchName,
                 league: tracking.leagueName,
                 market: tracking.eventTypeName,
+                siteId: tracking.siteId,
                 statusHistory: statusChanges,
                 betStatus: finalBetStatus,
                 firstSettlementTime: tracking.statusHistory[0].dateUTC,
@@ -582,6 +626,7 @@
                     branchName,
                     leagueName,
                     eventTypeName,
+                    siteId: record.siteid,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : ''
                   });
@@ -637,6 +682,7 @@
                 sport: tracking.branchName,
                 league: tracking.leagueName,
                 market: tracking.eventTypeName,
+                siteId: tracking.siteId,
                 eventStatus: 'Canceled',
                 betStatus: finalBetStatus,
                 updateTime: lastStatus.dateUTC,
@@ -924,8 +970,10 @@
           const reasonText = reasonOptions[reasonKey]?.english || '';
           const date = item.firstSettlementTime ? item.firstSettlementTime.split('T')[0] : '';
 
+          const operator = item.siteId ? (siteIdToOperator[item.siteId] || '') : '';
+
           return [
-            '',
+            operator,
             item.betId || '',
             '',
             item.sport || '',
