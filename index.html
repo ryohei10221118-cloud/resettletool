@@ -131,8 +131,9 @@
         if (!jsonData.trim() || !results) return;
 
         try {
-          const data = JSON.parse(jsonData);
-          if (!Array.isArray(data)) return;
+          const parsed = JSON.parse(jsonData);
+          const data = extractApiRequests(parsed);
+          if (!data) return;
 
           setShowPerEventReasons(false);
           setPerEventReasons({});
@@ -350,6 +351,12 @@
         const minutes = String(date.getUTCMinutes()).padStart(2, '0');
         const seconds = String(date.getUTCSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
+      };
+
+      const extractApiRequests = (parsed) => {
+        if (Array.isArray(parsed)) return parsed;
+        if (parsed && Array.isArray(parsed.apiRequests)) return parsed.apiRequests;
+        return null;
       };
 
       const analyzeResettlements = (data) => {
@@ -845,10 +852,11 @@
         setPerEventReasons({});
 
         try {
-          const data = JSON.parse(jsonData);
+          const parsed = JSON.parse(jsonData);
+          const data = extractApiRequests(parsed);
 
-          if (!Array.isArray(data)) {
-            throw new Error('请输入JSON数组格式的Seamless tool数据');
+          if (!data) {
+            throw new Error('请输入JSON数组格式的Seamless tool数据，或包含apiRequests的完整回应');
           }
 
           let reports = {};
