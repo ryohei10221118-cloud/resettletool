@@ -204,6 +204,20 @@
         }
       }, [queryHistory]);
 
+      const getPurchaseIdFromRecord = (record) => {
+        if (!record.queryparams) return '';
+        try {
+          const parsed = JSON.parse(record.queryparams);
+          return parsed.purchase_id || '';
+        } catch (e) {
+          try {
+            return new URLSearchParams(record.queryparams).get('purchase_id') || '';
+          } catch (e2) {
+            return '';
+          }
+        }
+      };
+
       const formatHistoryTime = (isoStr) => {
         const d = new Date(isoStr);
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -495,7 +509,10 @@
                   betId = bets[0].getAttribute('ID');
                 }
 
-                const purchaseId = (selection.parentNode && selection.parentNode.getAttribute('ID')) || '';
+                // Selection → Selections → Purchase (has PurchaseID)
+                const purchaseEl = selection.parentNode && selection.parentNode.parentNode;
+                const purchaseIdFromXml = purchaseEl ? (purchaseEl.getAttribute('PurchaseID') || '') : '';
+                const purchaseId = purchaseIdFromXml || getPurchaseIdFromRecord(record);
 
                 if (!lineIdTracking.has(lineId)) {
                   lineIdTracking.set(lineId, {
@@ -675,7 +692,10 @@
                   betId = bets[0].getAttribute('ID');
                 }
 
-                const purchaseId = (selection.parentNode && selection.parentNode.getAttribute('ID')) || '';
+                // Selection → Selections → Purchase (has PurchaseID)
+                const purchaseEl = selection.parentNode && selection.parentNode.parentNode;
+                const purchaseIdFromXml = purchaseEl ? (purchaseEl.getAttribute('PurchaseID') || '') : '';
+                const purchaseId = purchaseIdFromXml || getPurchaseIdFromRecord(record);
 
                 if (!lineIdTracking.has(lineId)) {
                   lineIdTracking.set(lineId, {
