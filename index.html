@@ -79,9 +79,11 @@
       const [perEventReasons, setPerEventReasons] = useState({});
       const [showReasonBubble, setShowReasonBubble] = useState(false);
       const [showScrollTop, setShowScrollTop] = useState(false);
+      const [showHistoryBubble, setShowHistoryBubble] = useState(false);
 
       // Track scroll position for floating buttons
       const reasonBubbleRef = React.useRef(null);
+      const historyBubbleRef = React.useRef(null);
       React.useEffect(() => {
         const handleScroll = () => {
           setShowScrollTop(window.scrollY > 300);
@@ -89,6 +91,9 @@
         const handleClickOutside = (e) => {
           if (reasonBubbleRef.current && !reasonBubbleRef.current.contains(e.target)) {
             setShowReasonBubble(false);
+          }
+          if (historyBubbleRef.current && !historyBubbleRef.current.contains(e.target)) {
+            setShowHistoryBubble(false);
           }
         };
         window.addEventListener('scroll', handleScroll);
@@ -165,6 +170,15 @@
         return stored ? JSON.parse(stored) : {};
       });
 
+      const [queryHistory, setQueryHistory] = useState(() => {
+        try {
+          const stored = localStorage.getItem('queryHistory');
+          return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+          return [];
+        }
+      });
+
       const [userName, setUserName] = useState(() => {
         const stored = localStorage.getItem('userName');
         return stored || '';
@@ -181,6 +195,33 @@
       useEffect(() => {
         localStorage.setItem('userName', userName);
       }, [userName]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+        } catch (e) {
+          // localStorage 容量不足时静默失败
+        }
+      }, [queryHistory]);
+
+      const formatHistoryTime = (isoStr) => {
+        const d = new Date(isoStr);
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${month}/${day} ${hours}:${minutes}`;
+      };
+
+      const getBetIdsLabel = (analyzedData) => {
+        if (!analyzedData || analyzedData.length === 0) return 'N/A';
+        const ids = analyzedData.slice(0, 2).map(item => {
+          const id = item.betId || 'N/A';
+          return id.length > 14 ? id.slice(0, 14) + '…' : id;
+        });
+        if (analyzedData.length > 2) ids.push(`+${analyzedData.length - 2} 笔`);
+        return ids.join(' / ');
+      };
 
       const capitalizeFirstLetter = (str) => {
         if (!str) return str;
@@ -875,6 +916,20 @@
           reports.eventCount = analyzedData.length;
 
           setResults(reports);
+
+          // Save to query history (keep latest 5)
+          if (analyzedData.length > 0) {
+            const record = {
+              id: Date.now(),
+              timestamp: new Date().toISOString(),
+              analysisType,
+              resettlementReasonTemplate,
+              cancellationReasonTemplate,
+              perEventReasons: {},
+              results: reports
+            };
+            setQueryHistory(prev => [record, ...prev].slice(0, 5));
+          }
         } catch (e) {
           setError('数据解析错误: ' + e.message);
         } finally {
@@ -1098,6 +1153,21 @@
           setCustomCancellationReasons(updated);
         }
         setDeleteConfirmKey(null);
+      };
+
+      const handleRestoreHistory = (record) => {
+        setAnalysisType(record.analysisType);
+        setResettlementReasonTemplate(record.resettlementReasonTemplate);
+        setCancellationReasonTemplate(record.cancellationReasonTemplate);
+        setPerEventReasons(record.perEventReasons || {});
+        setResults(record.results);
+        setShowPerEventReasons(false);
+        setShowHistoryBubble(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const handleDeleteHistory = (id) => {
+        setQueryHistory(prev => prev.filter(r => r.id !== id));
       };
 
       const handleClear = () => {
@@ -1800,6 +1870,126 @@
               title="快速选择原因"
             >
               R
+            </button>
+          </div>
+
+          {/* Floating History Bubble */}
+          <div ref={historyBubbleRef} style={{ position: 'fixed', bottom: '210px', right: '30px', zIndex: 40 }}>
+            {showHistoryBubble && (
+              <div style={{
+                position: 'absolute',
+                bottom: '60px',
+                right: '0',
+                width: '300px',
+                background: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                padding: '16px',
+                animation: 'fadeInUp 0.2s ease'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>
+                  🕐 最近查询记录（最多 5 笔）
+                </div>
+                {queryHistory.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', padding: '16px 0' }}>
+                    尚无查询记录
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {queryHistory.map(record => (
+                      <div key={record.id} style={{
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        background: '#F9FAFB'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', color: '#6B7280' }}>{formatHistoryTime(record.timestamp)}</span>
+                            <span style={{
+                              fontSize: '10px',
+                              background: record.analysisType === 'resettlement' ? '#FEF3C7' : '#FEE2E2',
+                              color: record.analysisType === 'resettlement' ? '#92400E' : '#991B1B',
+                              borderRadius: '4px',
+                              padding: '1px 5px',
+                              fontWeight: 600
+                            }}>
+                              {record.analysisType === 'resettlement' ? '重新结算' : '取消'}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#6B7280' }}>
+                              {record.results?.eventCount || 0} 笔
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteHistory(record.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '14px', padding: '0', lineHeight: 1 }}
+                            title="删除此记录"
+                          >✕</button>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#374151', marginBottom: '8px', wordBreak: 'break-all' }}>
+                          {getBetIdsLabel(record.results?.analyzedData)}
+                        </div>
+                        <button
+                          onClick={() => handleRestoreHistory(record)}
+                          style={{
+                            width: '100%',
+                            padding: '5px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid #3B82F6',
+                            background: '#EFF6FF',
+                            color: '#1D4ED8',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                          }}
+                        >
+                          ↩ 还原此查询
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setShowHistoryBubble(!showHistoryBubble)}
+              style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: showHistoryBubble ? '#0D9488' : '#14B8A6',
+                color: 'white',
+                border: 'none',
+                fontSize: '20px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(20,184,166,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+              title="查询历史记录"
+            >
+              H
+              {queryHistory.length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#EF4444',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700
+                }}>{queryHistory.length}</span>
+              )}
             </button>
           </div>
 
