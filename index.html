@@ -1301,33 +1301,14 @@
                 setLoading(false);
                 return;
               } else {
-                // No actual resettlement, auto-process all events without checkbox UI
-                const autoAnalyzedData = boData.events.map(event => ({
-                  betId: boData.betId,
-                  eventName: event.eventName,
-                  selectionName: event.selectionName || '',
-                  statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
-                  eventStatus: event.status || 'N/A',
-                  betStatus: event.status || 'N/A',
-                  firstSettlementTime: event.firstSettlementTime || 'N/A',
-                  lastUpdateTime: event.lastUpdateTime || 'N/A',
-                  updateTime: event.lastUpdateTime || 'N/A',
-                  totalEventsInBet: boData.totalEvents || boData.events.length,
-                  hasResettlement: event.hasResettlement,
-                  siteId: boData.siteId,
-                  sport: event.sport || '',
-                  league: event.league || '',
-                  market: event.market || '',
-                }));
-
+                // No actual resettlement - show "no records" message
                 if (analysisType === 'resettlement') {
-                  reports = generateResettlementReports(autoAnalyzedData);
+                  reports = generateResettlementReports([]);
                 } else {
-                  reports = generateCancellationReports(autoAnalyzedData);
+                  reports = generateCancellationReports([]);
                 }
-                reports.analyzedData = autoAnalyzedData;
-                reports.eventCount = autoAnalyzedData.length;
-                reports.operator = boData.operator;
+                reports.analyzedData = [];
+                reports.eventCount = 0;
                 setResults(reports);
                 setLoading(false);
                 return;
