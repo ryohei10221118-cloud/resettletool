@@ -410,8 +410,10 @@
       }, []);
 
       // Selection status mapping: 2=Won, 3=Lost, 4=Canceled, 0=Opened
+      // SelectionStatus mapping from BTI API
       const selectionStatusMap = {
         0: 'Opened',
+        1: 'Settled',
         2: 'Won',
         3: 'Lost',
         4: 'Canceled',
@@ -688,6 +690,8 @@
           'Half Won': '半赢',
           'Half Lost': '半输',
           'Opened': '未结算',
+          'Settled': '已结算',
+          'Void': '作废',
           'Draw': '平局'
         },
         korean: {
@@ -697,6 +701,8 @@
           'Half Won': '반승',
           'Half Lost': '반패',
           'Opened': '진행중 베팅',
+          'Settled': '정산됨',
+          'Void': '무효',
           'Draw': '무승부'
         }
       };
