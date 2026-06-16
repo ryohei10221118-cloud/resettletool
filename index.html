@@ -1286,32 +1286,56 @@
               // BO Detail JSON format
               const boData = parseBODetailJSON(parsed);
 
-              // Check if any event has actual resettlement (statusHistory length > 1)
-              const anyHasResettlement = boData.events.some(e => e.hasResettlement);
+              // Check based on analysis type
+              if (analysisType === 'resettlement') {
+                // For resettlement: check if any event has multiple status changes
+                const anyHasResettlement = boData.events.some(e => e.hasResettlement);
 
-              if (anyHasResettlement) {
-                // Show selection UI for user to pick which events to include
-                setBoParsedData(boData);
-                setBoTextMode(true);
-                const initialSelection = {};
-                boData.events.forEach((_, idx) => {
-                  initialSelection[idx] = false;
-                });
-                setBoSelectedEvents(initialSelection);
-                setLoading(false);
-                return;
-              } else {
-                // No actual resettlement - show "no records" message
-                if (analysisType === 'resettlement') {
-                  reports = generateResettlementReports([]);
+                if (anyHasResettlement) {
+                  // Show selection UI for user to pick which events to include
+                  setBoParsedData(boData);
+                  setBoTextMode(true);
+                  const initialSelection = {};
+                  boData.events.forEach((_, idx) => {
+                    initialSelection[idx] = false;
+                  });
+                  setBoSelectedEvents(initialSelection);
+                  setLoading(false);
+                  return;
                 } else {
-                  reports = generateCancellationReports([]);
+                  // No actual resettlement - show "no records" message
+                  reports = generateResettlementReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
                 }
-                reports.analyzedData = [];
-                reports.eventCount = 0;
-                setResults(reports);
-                setLoading(false);
-                return;
+              } else {
+                // For cancellation: check if any event has Canceled status
+                const canceledEvents = boData.events.filter(e => e.status === 'Canceled');
+
+                if (canceledEvents.length > 0) {
+                  // Show selection UI for user to pick which canceled events to include
+                  setBoParsedData(boData);
+                  setBoTextMode(true);
+                  const initialSelection = {};
+                  boData.events.forEach((e, idx) => {
+                    // Pre-select canceled events
+                    initialSelection[idx] = e.status === 'Canceled';
+                  });
+                  setBoSelectedEvents(initialSelection);
+                  setLoading(false);
+                  return;
+                } else {
+                  // No canceled events - show "no records" message
+                  reports = generateCancellationReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
+                }
               }
             }
 
