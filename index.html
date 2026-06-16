@@ -462,6 +462,8 @@
             marketIdToInputs[marketId] = inputIds.map(id => String(id));
           });
         }
+        console.log('marketIdToInputs:', marketIdToInputs);
+        console.log('inputIdToHistory keys:', Object.keys(inputIdToHistory));
 
         // Parse selections
         if (json.Selections && Array.isArray(json.Selections)) {
@@ -473,11 +475,19 @@
             const inputIds = marketIdToInputs[marketId] || [];
             const hasResettlement = inputIds.length > 1;
 
+            console.log('Selection:', sel.EventName, 'MarketId:', marketId, 'InputIds:', inputIds);
+
             // Build status history for this selection from its InputIds
             const selectionHistory = inputIds
-              .map(idStr => inputIdToHistory[idStr])
+              .map(idStr => {
+                const found = inputIdToHistory[idStr];
+                console.log('  Looking for InputId:', idStr, 'Found:', !!found);
+                return found;
+              })
               .filter(h => h)
               .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+
+            console.log('  selectionHistory length:', selectionHistory.length);
 
             // Build proper status chain: first oldStatus, then all newStatus values
             let statusChain = [];
