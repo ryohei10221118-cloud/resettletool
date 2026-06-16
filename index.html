@@ -438,10 +438,13 @@
         }
 
         // Build InputId to SettlementHistory mapping
+        // InputId in SettlementHistory is string, in ProcessedInputs is number
         const inputIdToHistory = {};
         if (json.SettlementHistory && Array.isArray(json.SettlementHistory)) {
           json.SettlementHistory.forEach(h => {
-            inputIdToHistory[h.InputId] = {
+            // Store with both string and number keys for matching
+            const key = String(h.InputId);
+            inputIdToHistory[key] = {
               dateUTC: h.DateUpdated,
               newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
               oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
@@ -464,10 +467,27 @@
             const hasResettlement = inputIds.length > 1;
 
             // Build status history for this selection from its InputIds
+            // ProcessedInputs has numbers, SettlementHistory.InputId is string - convert both
             const selectionHistory = inputIds
-              .map(id => inputIdToHistory[String(id)])
+              .map(id => {
+                const key = String(id);
+                return inputIdToHistory[key];
+              })
               .filter(h => h)
               .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+
+            // Build proper status chain: first oldStatus, then all newStatus values
+            let statusChain = [];
+            if (selectionHistory.length > 0) {
+              // Start with the first record's oldStatus (initial state)
+              statusChain.push(selectionHistory[0].oldStatus);
+              // Then add each newStatus
+              selectionHistory.forEach(h => {
+                statusChain.push(h.newStatus);
+              });
+              // Remove consecutive duplicates
+              statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
+            }
 
             result.events.push({
               eventName: sel.EventName || '',
@@ -480,7 +500,7 @@
               result: sel.Result || '',
               hasResettlement: hasResettlement,
               inputCount: inputIds.length,
-              statusHistory: selectionHistory.map(h => h.newStatus),
+              statusHistory: statusChain,
               firstSettlementTime: selectionHistory.length > 0 ? selectionHistory[0].dateUTC : null,
               lastUpdateTime: selectionHistory.length > 0 ? selectionHistory[selectionHistory.length - 1].dateUTC : null,
             });
@@ -689,21 +709,27 @@
       };
 
       const formatDateTime = (dateTimeStr) => {
-        if (!dateTimeStr) return '';
+        if (!dateTimeStr || dateTimeStr === 'N/A') return 'N/A';
 
-        let utcDateTimeStr = dateTimeStr;
-        if (!dateTimeStr.includes('Z') && !dateTimeStr.includes('+') && !dateTimeStr.includes('-', 10)) {
-          utcDateTimeStr = dateTimeStr + 'Z';
+        try {
+          let utcDateTimeStr = String(dateTimeStr);
+          if (!utcDateTimeStr.includes('Z') && !utcDateTimeStr.includes('+') && !utcDateTimeStr.includes('-', 10)) {
+            utcDateTimeStr = utcDateTimeStr + 'Z';
+          }
+
+          const date = new Date(utcDateTimeStr);
+          if (isNaN(date.getTime())) return 'N/A';
+
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          const hours = String(date.getUTCHours()).padStart(2, '0');
+          const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+          const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
+        } catch (e) {
+          return 'N/A';
         }
-
-        const date = new Date(utcDateTimeStr);
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
       };
 
       const extractApiRequests = (parsed) => {
