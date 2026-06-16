@@ -404,6 +404,175 @@
           });
       }, []);
 
+      // Parse BO text format to extract bet information
+      const parseBOText = (text) => {
+        const result = {
+          betId: '',
+          totalEvents: 0,
+          events: [],
+          settlementHistory: [],
+          isCombo: false,
+        };
+
+        // Extract Bet ID
+        const betIdMatch = text.match(/Bet ID\s*\n?\s*(\d+)/i);
+        if (betIdMatch) {
+          result.betId = betIdMatch[1];
+        }
+
+        // Check if it's a combo bet and get event count
+        const betTypeMatch = text.match(/Bet Type\s*\n?\s*(.*?)(?:\n|$)/i);
+        if (betTypeMatch && betTypeMatch[1].toLowerCase().includes('combo')) {
+          result.isCombo = true;
+        }
+
+        const eventCountMatch = text.match(/Event\s*\n?\s*(\d+)\s*Events?/i);
+        if (eventCountMatch) {
+          result.totalEvents = parseInt(eventCountMatch[1]);
+        }
+
+        // Parse event lines - look for patterns like:
+        // MMA	UFC Freedom 250	Prematch	2026-06-15 00:40:00	Mauricio Ruffy vs Michael Chandler	Asian Handicap Points	...	Canceled
+        // or lines ending with Won/Lost/Canceled/Opened etc.
+        const lines = text.split('\n');
+        let currentEvent = null;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+
+          // Match event lines with status at the end
+          // Format: Sport League Type DateTime EventName Market Selection Odds ... Status ...
+          if (line.match(/^(MMA|Soccer|Football|Basketball|Tennis|Baseball|Hockey|Esports|Boxing)/i)) {
+            const parts = line.split('\t');
+            if (parts.length >= 5) {
+              // Find event name (usually contains "vs" or "v ")
+              let eventName = '';
+              let status = '';
+
+              for (const part of parts) {
+                if (part.includes(' vs ') || part.includes(' v ')) {
+                  eventName = part.trim();
+                }
+                // Look for status
+                if (['Won', 'Lost', 'Canceled', 'Opened', 'Void', 'Cashout', 'Half Won', 'Half Lost'].includes(part.trim())) {
+                  status = part.trim();
+                }
+              }
+
+              if (eventName) {
+                result.events.push({
+                  eventName: eventName,
+                  status: status || 'Unknown',
+                });
+              }
+            }
+          }
+
+          // Also try to match settlement history lines
+          // Format: 2026-06-16 01:18:24	853258294998589441	Won	Opened	IDR 1,086.00	...
+          const historyMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\t(\d+)\t(\w+)\t(\w+)/);
+          if (historyMatch) {
+            result.settlementHistory.push({
+              dateUTC: historyMatch[1],
+              betId: historyMatch[2],
+              newStatus: historyMatch[3],
+              oldStatus: historyMatch[4],
+            });
+          }
+        }
+
+        // If we couldn't find events from tab-separated lines, try alternative parsing
+        if (result.events.length === 0) {
+          // Look for "vs" patterns in consecutive lines
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.includes(' vs ') && !line.includes('Bet ID') && !line.includes('Purchase')) {
+              // Check next few lines for status
+              let status = 'Unknown';
+              for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                const checkLine = lines[j].trim();
+                if (['Won', 'Lost', 'Canceled', 'Opened', 'Void'].some(s => checkLine.includes(s))) {
+                  const statusMatch = checkLine.match(/(Won|Lost|Canceled|Opened|Void|Half Won|Half Lost)/);
+                  if (statusMatch) {
+                    status = statusMatch[1];
+                    break;
+                  }
+                }
+              }
+              result.events.push({
+                eventName: line,
+                status: status,
+              });
+            }
+          }
+        }
+
+        // Set total events if not found
+        if (result.totalEvents === 0) {
+          result.totalEvents = Math.max(result.events.length, 1);
+        }
+
+        return result;
+      };
+
+      // Analyze BO text for resettlements
+      const analyzeBOTextResettlements = (boData) => {
+        const resettlements = [];
+
+        // Check if there's resettlement history (status changes)
+        const hasResettlement = boData.settlementHistory.length > 1;
+
+        if (hasResettlement || boData.events.some(e => e.status === 'Won' || e.status === 'Lost')) {
+          boData.events.forEach((event, index) => {
+            // Build status history from settlement records
+            const statusHistory = boData.settlementHistory
+              .filter(h => h.betId === boData.betId)
+              .map(h => h.newStatus);
+
+            // If we have status changes, it's a resettlement
+            if (statusHistory.length > 1 || hasResettlement) {
+              resettlements.push({
+                betId: boData.betId,
+                eventName: event.eventName,
+                statusHistory: statusHistory.length > 0 ? statusHistory : [event.status],
+                betStatus: event.status,
+                firstSettlementTime: boData.settlementHistory.length > 0
+                  ? boData.settlementHistory[boData.settlementHistory.length - 1].dateUTC
+                  : 'N/A',
+                lastUpdateTime: boData.settlementHistory.length > 0
+                  ? boData.settlementHistory[0].dateUTC
+                  : 'N/A',
+                totalEventsInBet: boData.totalEvents,
+              });
+            }
+          });
+        }
+
+        return resettlements;
+      };
+
+      // Analyze BO text for cancellations
+      const analyzeBOTextCancellations = (boData) => {
+        const cancellations = [];
+
+        boData.events.forEach((event, index) => {
+          if (event.status === 'Canceled') {
+            cancellations.push({
+              betId: boData.betId,
+              eventName: event.eventName,
+              eventStatus: 'Canceled',
+              betStatus: boData.events.length > 1 ? 'Partial' : 'Canceled',
+              updateTime: boData.settlementHistory.length > 0
+                ? boData.settlementHistory[0].dateUTC
+                : 'N/A',
+              totalEventsInBet: boData.totalEvents,
+            });
+          }
+        });
+
+        return cancellations;
+      };
+
       const statusTranslations = {
         chinese: {
           'Won': '赢',
@@ -962,7 +1131,7 @@
 
       const handleAnalyze = () => {
         if (!jsonData.trim()) {
-          setError('请输入JSON数据');
+          setError('请输入数据');
           return;
         }
 
@@ -972,22 +1141,54 @@
         setPerEventReasons({});
 
         try {
-          const parsed = JSON.parse(jsonData);
-          const data = extractApiRequests(parsed);
-
-          if (!data) {
-            throw new Error('请输入JSON数组格式的Seamless tool数据，或包含apiRequests的完整回应');
-          }
-
           let reports = {};
           let analyzedData = [];
+          const trimmedData = jsonData.trim();
 
-          if (analysisType === 'resettlement') {
-            analyzedData = analyzeResettlements(data);
-            reports = generateResettlementReports(analyzedData);
+          // Detect input format: JSON starts with [ or {
+          const isJSON = trimmedData.startsWith('[') || trimmedData.startsWith('{');
+
+          if (isJSON) {
+            // JSON format (Seamless Tool)
+            const parsed = JSON.parse(trimmedData);
+            const data = extractApiRequests(parsed);
+
+            if (!data) {
+              throw new Error('请输入JSON数组格式的Seamless tool数据，或包含apiRequests的完整回应');
+            }
+
+            if (analysisType === 'resettlement') {
+              analyzedData = analyzeResettlements(data);
+              reports = generateResettlementReports(analyzedData);
+            } else {
+              analyzedData = analyzeCancellations(data);
+              reports = generateCancellationReports(analyzedData);
+            }
           } else {
-            analyzedData = analyzeCancellations(data);
-            reports = generateCancellationReports(analyzedData);
+            // BO Text format
+            const boData = parseBOText(trimmedData);
+
+            if (!boData.betId) {
+              throw new Error('无法从文字中解析 Bet ID，请确认输入格式正确');
+            }
+
+            if (boData.events.length === 0) {
+              throw new Error('无法从文字中解析赛事信息，请确认输入格式正确');
+            }
+
+            if (analysisType === 'resettlement') {
+              analyzedData = analyzeBOTextResettlements(boData);
+              if (analyzedData.length === 0) {
+                throw new Error('未检测到重新结算记录');
+              }
+              reports = generateResettlementReports(analyzedData);
+            } else {
+              analyzedData = analyzeBOTextCancellations(boData);
+              if (analyzedData.length === 0) {
+                throw new Error('未检测到取消记录');
+              }
+              reports = generateCancellationReports(analyzedData);
+            }
           }
 
           // Store analyzed data and event count for per-event editing
@@ -1586,12 +1787,12 @@
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      JSON数据输入
+                      数据输入 <span className="text-gray-500 font-normal">(支援 JSON 或 BO 文字格式)</span>
                     </label>
                     <textarea
                       value={jsonData}
                       onChange={(e) => setJsonData(e.target.value)}
-                      placeholder="请粘贴完整的Seamless tool JSON数组数据..."
+                      placeholder="请粘贴 Seamless Tool JSON 数据，或直接从 BO 页面复制的注单文字..."
                       className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                     />
                   </div>
@@ -2135,7 +2336,11 @@
           <div className="mt-8 bg-blue-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-3">使用说明</h3>
             <div className="text-sm text-gray-700 space-y-2">
-              <p><strong>数据格式：</strong>仅支持Seamless tool的JSON数组格式数据</p>
+              <p><strong>数据格式：</strong>支援两种输入格式：</p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li><strong>JSON 格式：</strong>Seamless Tool 的 JSON 数组数据</li>
+                <li><strong>BO 文字格式：</strong>直接从 BO 注单页面复制的文字（包含 Bet ID、赛事、结算历史）</li>
+              </ul>
               <p><strong>重新结算分析：</strong>检测同一LineID在多次结算中状态发生变化的记录</p>
               <p><strong>取消分析：</strong>识别最终状态为"Canceled"的比赛记录</p>
               <p><strong>多语言输出：</strong>自动生成英文、中文、韩文三种版本的报告</p>
