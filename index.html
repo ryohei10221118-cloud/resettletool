@@ -1346,6 +1346,19 @@
                   reports.eventCount = resettledData.length;
                   reports.operator = boData.operator;
                   setResults(reports);
+
+                  // Save to query history
+                  const record = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    analysisType,
+                    resettlementReasonTemplate,
+                    cancellationReasonTemplate,
+                    perEventReasons: {},
+                    results: reports
+                  };
+                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
                   setLoading(false);
                   return;
                 } else {
@@ -1382,6 +1395,19 @@
                   reports.eventCount = canceledData.length;
                   reports.operator = boData.operator;
                   setResults(reports);
+
+                  // Save to query history
+                  const record = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    analysisType,
+                    resettlementReasonTemplate,
+                    cancellationReasonTemplate,
+                    perEventReasons: {},
+                    results: reports
+                  };
+                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
                   setLoading(false);
                   return;
                 } else {
@@ -1516,6 +1542,19 @@
         reports.operator = boParsedData.operator;
 
         setResults(reports);
+
+        // Save to query history
+        const record = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          analysisType,
+          resettlementReasonTemplate,
+          cancellationReasonTemplate,
+          perEventReasons: {},
+          results: reports
+        };
+        setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
         setBoTextMode(false);
         setCopyStatus('报告已生成');
         setTimeout(() => setCopyStatus(''), 2000);
