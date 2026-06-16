@@ -409,6 +409,66 @@
           });
       }, []);
 
+      // Selection status mapping: 2=Won, 3=Lost, 4=Canceled, 0=Opened
+      const selectionStatusMap = {
+        0: 'Opened',
+        2: 'Won',
+        3: 'Lost',
+        4: 'Canceled',
+        5: 'Half Won',
+        6: 'Half Lost',
+        7: 'Void',
+      };
+
+      // Parse BO Detail JSON format (from bet detail page)
+      const parseBODetailJSON = (json) => {
+        const result = {
+          betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
+          operator: '',
+          siteId: json.Customer?.SiteId,
+          totalEvents: json.Bets?.[0]?.NumberOfLines || json.Selections?.length || 0,
+          events: [],
+          settlementHistory: [],
+          isCombo: (json.Bets?.[0]?.NumberOfLines || 0) > 1,
+        };
+
+        // Get operator from siteId
+        if (result.siteId && siteIdToOperator[result.siteId]) {
+          result.operator = siteIdToOperator[result.siteId];
+        }
+
+        // Parse selections
+        if (json.Selections && Array.isArray(json.Selections)) {
+          json.Selections.forEach(sel => {
+            const status = selectionStatusMap[sel.SelectionStatus] || 'Unknown';
+            result.events.push({
+              eventName: sel.EventName || '',
+              selectionName: sel.SelectionName || '',
+              status: status,
+              league: sel.LeagueName || '',
+              sport: sel.SportName || '',
+              market: sel.MarketName || '',
+              result: sel.Result || '',
+            });
+          });
+        }
+
+        // Parse settlement history
+        if (json.SettlementHistory && Array.isArray(json.SettlementHistory)) {
+          json.SettlementHistory.forEach(h => {
+            result.settlementHistory.push({
+              dateUTC: h.DateUpdated,
+              newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
+              oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
+            });
+          });
+          // Sort by date ascending
+          result.settlementHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+        }
+
+        return result;
+      };
+
       // Parse BO text format to extract bet information
       const parseBOText = (text) => {
         const result = {
@@ -1139,12 +1199,28 @@
           const isJSON = trimmedData.startsWith('[') || trimmedData.startsWith('{');
 
           if (isJSON) {
-            // JSON format (Seamless Tool)
             const parsed = JSON.parse(trimmedData);
+
+            // Check if it's BO Detail JSON (has Selections array)
+            if (parsed.Selections && Array.isArray(parsed.Selections)) {
+              // BO Detail JSON format - show selection UI
+              const boData = parseBODetailJSON(parsed);
+              setBoParsedData(boData);
+              setBoTextMode(true);
+              const initialSelection = {};
+              boData.events.forEach((_, idx) => {
+                initialSelection[idx] = false;
+              });
+              setBoSelectedEvents(initialSelection);
+              setLoading(false);
+              return;
+            }
+
+            // Seamless Tool JSON format
             const data = extractApiRequests(parsed);
 
             if (!data) {
-              throw new Error('请输入JSON数组格式的Seamless tool数据，或包含apiRequests的完整回应');
+              throw new Error('请输入JSON数组格式的Seamless tool数据，或包含Selections的BO详情JSON');
             }
 
             if (analysisType === 'resettlement') {
@@ -1221,24 +1297,33 @@
         setError('');
         let analyzedData = [];
 
+        // Build status history from settlement history
+        const statusHistory = boParsedData.settlementHistory.map(h => h.newStatus);
+
         selectedIndices.forEach(idx => {
           const event = boParsedData.events[idx];
           analyzedData.push({
             betId: boParsedData.betId,
             eventName: event.eventName,
-            statusHistory: analysisType === 'resettlement' ? ['Resettled'] : ['Canceled'],
-            eventStatus: analysisType === 'resettlement' ? 'Resettled' : 'Canceled',
+            selectionName: event.selectionName || '',
+            statusHistory: statusHistory.length > 0 ? statusHistory : [event.status],
+            eventStatus: event.status || 'N/A',
             betStatus: event.status || 'N/A',
             firstSettlementTime: boParsedData.settlementHistory.length > 0
-              ? boParsedData.settlementHistory[boParsedData.settlementHistory.length - 1].dateUTC
+              ? boParsedData.settlementHistory[0].dateUTC
               : 'N/A',
             lastUpdateTime: boParsedData.settlementHistory.length > 0
-              ? boParsedData.settlementHistory[0].dateUTC
+              ? boParsedData.settlementHistory[boParsedData.settlementHistory.length - 1].dateUTC
               : 'N/A',
             updateTime: boParsedData.settlementHistory.length > 0
-              ? boParsedData.settlementHistory[0].dateUTC
+              ? boParsedData.settlementHistory[boParsedData.settlementHistory.length - 1].dateUTC
               : 'N/A',
             totalEventsInBet: boParsedData.totalEvents || boParsedData.events.length,
+            // Extra fields for Excel
+            siteId: boParsedData.siteId,
+            sport: event.sport || '',
+            league: event.league || '',
+            market: event.market || '',
           });
         });
 
@@ -1898,7 +1983,7 @@
 
                       <div className="space-y-2 mb-4">
                         {boParsedData.events.map((event, idx) => (
-                          <label key={idx} className="flex items-start gap-3 p-2 bg-white rounded border border-gray-200 cursor-pointer hover:bg-gray-50">
+                          <label key={idx} className="flex items-start gap-3 p-3 bg-white rounded border border-gray-200 cursor-pointer hover:bg-gray-50">
                             <input
                               type="checkbox"
                               checked={boSelectedEvents[idx] || false}
@@ -1907,7 +1992,16 @@
                             />
                             <div className="flex-1">
                               <div className="text-sm font-medium text-gray-800">{event.eventName}</div>
-                              <div className="text-xs text-gray-500">状态: {event.status}</div>
+                              {event.selectionName && (
+                                <div className="text-xs text-blue-600">{event.selectionName}</div>
+                              )}
+                              <div className="text-xs text-gray-500 flex gap-3 mt-1">
+                                <span className={`font-medium ${event.status === 'Canceled' ? 'text-red-600' : event.status === 'Won' ? 'text-green-600' : ''}`}>
+                                  {event.status}
+                                </span>
+                                {event.league && <span>{event.league}</span>}
+                                {event.result && <span>比分: {event.result}</span>}
+                              </div>
                             </div>
                           </label>
                         ))}
