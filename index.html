@@ -423,7 +423,7 @@
         32: 'Cashout',
       };
 
-      // Parse BO Detail JSON format (from bet detail page)
+      // Parse Kraken JSON format (from bet detail page)
       const parseBODetailJSON = (json) => {
         const result = {
           betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
@@ -1314,9 +1314,9 @@
             } while (safeJsonData !== prevData);
             const parsed = JSON.parse(safeJsonData);
 
-            // Check if it's BO Detail JSON (has Selections array)
+            // Check if it's Kraken JSON (has Selections array)
             if (parsed.Selections && Array.isArray(parsed.Selections)) {
-              // BO Detail JSON format
+              // Kraken JSON format
               const boData = parseBODetailJSON(parsed);
 
               // Check based on analysis type
@@ -2719,10 +2719,11 @@
           <div className="mt-8 bg-blue-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-3">使用说明</h3>
             <div className="text-sm text-gray-700 space-y-2">
-              <p><strong>数据格式：</strong>支援两种输入格式：</p>
+              <p><strong>数据格式：</strong>支援三种输入格式：</p>
               <ul className="list-disc list-inside ml-4 space-y-1">
-                <li><strong>JSON 格式：</strong>Seamless Tool 的 JSON 数组数据</li>
-                <li><strong>BO 文字格式：</strong>直接从 BO 注单页面复制的文字（包含 Bet ID、赛事、结算历史）</li>
+                <li><strong>Seamless Tool JSON：</strong>Seamless Tool 的 JSON 数组数据（自动处理）</li>
+                <li><strong>Kraken JSON：</strong>从 Kraken 注单详情页复制的 JSON（含 Selections、SettlementHistory，自动处理）</li>
+                <li><strong>BO 文字格式：</strong>直接从 BO 注单页面复制的文字（需手动勾选赛事）</li>
               </ul>
               <p><strong>重新结算分析：</strong>检测同一LineID在多次结算中状态发生变化的记录</p>
               <p><strong>取消分析：</strong>识别最终状态为"Canceled"的比赛记录</p>
