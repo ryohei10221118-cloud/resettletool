@@ -443,45 +443,49 @@
           result.totalEvents = parseInt(eventCountMatch[1]);
         }
 
-        // Parse event lines - look for patterns like:
-        // MMA	UFC Freedom 250	Prematch	2026-06-15 00:40:00	Mauricio Ruffy vs Michael Chandler	Asian Handicap Points	...	Canceled
-        // or lines ending with Won/Lost/Canceled/Opened etc.
+        // Parse event lines from BO text
+        // Format: Event info spans multiple lines, status (Won/Lost/Canceled) appears a few lines after "vs"
         const lines = text.split('\n');
-        let currentEvent = null;
+        const allText = text;
 
+        // Find all event names (lines containing " vs ")
+        const eventLines = [];
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
+          // Match lines with "vs" that look like event names
+          if (line.includes(' vs ') && !line.includes('Bet ID') && !line.includes('Purchase') && line.length < 200) {
+            eventLines.push({ index: i, name: line });
+          }
+        }
 
-          // Match event lines with status at the end
-          // Format: Sport League Type DateTime EventName Market Selection Odds ... Status ...
-          if (line.match(/^(MMA|Soccer|Football|Basketball|Tennis|Baseball|Hockey|Esports|Boxing)/i)) {
-            const parts = line.split('\t');
-            if (parts.length >= 5) {
-              // Find event name (usually contains "vs" or "v ")
-              let eventName = '';
-              let status = '';
+        // For each event, look for status in the next several lines
+        eventLines.forEach((event, eventIdx) => {
+          let status = 'Unknown';
+          // Look at the next 10 lines after the event name for status
+          const endLine = eventIdx < eventLines.length - 1
+            ? eventLines[eventIdx + 1].index
+            : Math.min(event.index + 15, lines.length);
 
-              for (const part of parts) {
-                if (part.includes(' vs ') || part.includes(' v ')) {
-                  eventName = part.trim();
-                }
-                // Look for status
-                if (['Won', 'Lost', 'Canceled', 'Opened', 'Void', 'Cashout', 'Half Won', 'Half Lost'].includes(part.trim())) {
-                  status = part.trim();
-                }
-              }
-
-              if (eventName) {
-                result.events.push({
-                  eventName: eventName,
-                  status: status || 'Unknown',
-                });
-              }
+          for (let j = event.index; j < endLine; j++) {
+            const checkLine = lines[j];
+            // Look for standalone status words (tab-separated or at line boundaries)
+            const statusMatch = checkLine.match(/\t(Won|Lost|Canceled|Opened|Void|Half Won|Half Lost|Cashout)\t|\t(Won|Lost|Canceled|Opened|Void|Half Won|Half Lost|Cashout)$|^(Won|Lost|Canceled|Opened|Void|Half Won|Half Lost|Cashout)\t/i);
+            if (statusMatch) {
+              status = (statusMatch[1] || statusMatch[2] || statusMatch[3]);
+              break;
             }
           }
 
-          // Also try to match settlement history lines
-          // Format: 2026-06-16 01:18:24	853258294998589441	Won	Opened	IDR 1,086.00	...
+          result.events.push({
+            eventName: event.name,
+            status: status,
+          });
+        });
+
+        // Parse settlement history lines
+        // Format: 2026-06-16 01:18:24	853258294998589441	Won	Opened	IDR 1,086.00	...
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
           const historyMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\t(\d+)\t(\w+)\t(\w+)/);
           if (historyMatch) {
             result.settlementHistory.push({
@@ -490,32 +494,6 @@
               newStatus: historyMatch[3],
               oldStatus: historyMatch[4],
             });
-          }
-        }
-
-        // If we couldn't find events from tab-separated lines, try alternative parsing
-        if (result.events.length === 0) {
-          // Look for "vs" patterns in consecutive lines
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.includes(' vs ') && !line.includes('Bet ID') && !line.includes('Purchase')) {
-              // Check next few lines for status
-              let status = 'Unknown';
-              for (let j = i; j < Math.min(i + 5, lines.length); j++) {
-                const checkLine = lines[j].trim();
-                if (['Won', 'Lost', 'Canceled', 'Opened', 'Void'].some(s => checkLine.includes(s))) {
-                  const statusMatch = checkLine.match(/(Won|Lost|Canceled|Opened|Void|Half Won|Half Lost)/);
-                  if (statusMatch) {
-                    status = statusMatch[1];
-                    break;
-                  }
-                }
-              }
-              result.events.push({
-                eventName: line,
-                status: status,
-              });
-            }
           }
         }
 
