@@ -410,14 +410,17 @@
       }, []);
 
       // Selection status mapping: 2=Won, 3=Lost, 4=Canceled, 0=Opened
+      // SelectionStatus mapping from BTI API
       const selectionStatusMap = {
         0: 'Opened',
+        1: 'Lost',
         2: 'Won',
-        3: 'Lost',
+        3: 'Draw',
         4: 'Canceled',
-        5: 'Half Won',
-        6: 'Half Lost',
-        7: 'Void',
+        15: 'Declined',
+        16: 'Half Lost',
+        17: 'Half Won',
+        32: 'Cashout',
       };
 
       // Parse BO Detail JSON format (from bet detail page)
@@ -688,7 +691,9 @@
           'Half Won': '半赢',
           'Half Lost': '半输',
           'Opened': '未结算',
-          'Draw': '平局'
+          'Draw': '平局',
+          'Declined': '拒绝',
+          'Cashout': '提前结算'
         },
         korean: {
           'Won': '승리',
@@ -697,7 +702,9 @@
           'Half Won': '반승',
           'Half Lost': '반패',
           'Opened': '진행중 베팅',
-          'Draw': '무승부'
+          'Draw': '무승부',
+          'Declined': '거부됨',
+          'Cashout': '캐시아웃'
         }
       };
 
@@ -1279,51 +1286,56 @@
               // BO Detail JSON format
               const boData = parseBODetailJSON(parsed);
 
-              // Check if any event has actual resettlement (statusHistory length > 1)
-              const anyHasResettlement = boData.events.some(e => e.hasResettlement);
+              // Check based on analysis type
+              if (analysisType === 'resettlement') {
+                // For resettlement: check if any event has multiple status changes
+                const anyHasResettlement = boData.events.some(e => e.hasResettlement);
 
-              if (anyHasResettlement) {
-                // Show selection UI for user to pick which events to include
-                setBoParsedData(boData);
-                setBoTextMode(true);
-                const initialSelection = {};
-                boData.events.forEach((_, idx) => {
-                  initialSelection[idx] = false;
-                });
-                setBoSelectedEvents(initialSelection);
-                setLoading(false);
-                return;
-              } else {
-                // No actual resettlement, auto-process all events without checkbox UI
-                const autoAnalyzedData = boData.events.map(event => ({
-                  betId: boData.betId,
-                  eventName: event.eventName,
-                  selectionName: event.selectionName || '',
-                  statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
-                  eventStatus: event.status || 'N/A',
-                  betStatus: event.status || 'N/A',
-                  firstSettlementTime: event.firstSettlementTime || 'N/A',
-                  lastUpdateTime: event.lastUpdateTime || 'N/A',
-                  updateTime: event.lastUpdateTime || 'N/A',
-                  totalEventsInBet: boData.totalEvents || boData.events.length,
-                  hasResettlement: event.hasResettlement,
-                  siteId: boData.siteId,
-                  sport: event.sport || '',
-                  league: event.league || '',
-                  market: event.market || '',
-                }));
-
-                if (analysisType === 'resettlement') {
-                  reports = generateResettlementReports(autoAnalyzedData);
+                if (anyHasResettlement) {
+                  // Show selection UI for user to pick which events to include
+                  setBoParsedData(boData);
+                  setBoTextMode(true);
+                  const initialSelection = {};
+                  boData.events.forEach((_, idx) => {
+                    initialSelection[idx] = false;
+                  });
+                  setBoSelectedEvents(initialSelection);
+                  setLoading(false);
+                  return;
                 } else {
-                  reports = generateCancellationReports(autoAnalyzedData);
+                  // No actual resettlement - show "no records" message
+                  reports = generateResettlementReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
                 }
-                reports.analyzedData = autoAnalyzedData;
-                reports.eventCount = autoAnalyzedData.length;
-                reports.operator = boData.operator;
-                setResults(reports);
-                setLoading(false);
-                return;
+              } else {
+                // For cancellation: check if any event has Canceled status
+                const canceledEvents = boData.events.filter(e => e.status === 'Canceled');
+
+                if (canceledEvents.length > 0) {
+                  // Show selection UI for user to pick which canceled events to include
+                  setBoParsedData(boData);
+                  setBoTextMode(true);
+                  const initialSelection = {};
+                  boData.events.forEach((e, idx) => {
+                    // Pre-select canceled events
+                    initialSelection[idx] = e.status === 'Canceled';
+                  });
+                  setBoSelectedEvents(initialSelection);
+                  setLoading(false);
+                  return;
+                } else {
+                  // No canceled events - show "no records" message
+                  reports = generateCancellationReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
+                }
               }
             }
 
