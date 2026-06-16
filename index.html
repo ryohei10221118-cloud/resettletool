@@ -1262,7 +1262,10 @@
           const isJSON = trimmedData.startsWith('[') || trimmedData.startsWith('{');
 
           if (isJSON) {
-            const parsed = JSON.parse(trimmedData);
+            // Pre-process JSON to handle large numbers (InputIds) that exceed JavaScript's safe integer
+            // Convert large numbers to strings before parsing to avoid precision loss
+            const safeJsonData = trimmedData.replace(/:\s*(\d{16,})/g, ': "$1"');
+            const parsed = JSON.parse(safeJsonData);
 
             // Check if it's BO Detail JSON (has Selections array)
             if (parsed.Selections && Array.isArray(parsed.Selections)) {
