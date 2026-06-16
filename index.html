@@ -457,43 +457,76 @@
         }
 
         // Parse ProcessedInputs to determine which selections were resettled
-        // Note: InputIds might be large numbers, so we need to handle them carefully
         const marketIdToInputs = {};
         if (json.ProcessedInputs) {
           Object.entries(json.ProcessedInputs).forEach(([marketId, inputIds]) => {
-            // Convert all inputIds to strings for comparison
             marketIdToInputs[marketId] = inputIds.map(id => String(id));
           });
         }
+
+        // For single-line bets, use all SettlementHistory records directly
+        // (InputId matching doesn't work reliably as not all InputIds are in ProcessedInputs)
+        const isSingleLine = (json.Bets?.[0]?.NumberOfLines || json.Selections?.length || 1) === 1;
+
+        // Build complete status chain from all SettlementHistory records
+        let allHistoryRecords = [];
+        if (json.SettlementHistory && Array.isArray(json.SettlementHistory)) {
+          allHistoryRecords = json.SettlementHistory
+            .map(h => ({
+              dateUTC: h.DateUpdated,
+              newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
+              oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
+            }))
+            .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+        }
+
         // Parse selections
         if (json.Selections && Array.isArray(json.Selections)) {
           json.Selections.forEach(sel => {
             const status = selectionStatusMap[sel.SelectionStatus] || 'Unknown';
             const marketId = sel.MarketId || '';
 
-            // Get input IDs for this selection's market (already as strings)
+            // Get input IDs for this selection's market
             const inputIds = marketIdToInputs[marketId] || [];
-            const hasResettlement = inputIds.length > 1;
+            // hasResettlement = more than 1 InputId OR more than 1 SettlementHistory record
+            const hasResettlement = inputIds.length > 1 || allHistoryRecords.length > 1;
 
-            // Build status history for this selection from its InputIds
-            const selectionHistory = inputIds
-              .map(idStr => inputIdToHistory[idStr])
-              .filter(h => h)
-              .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-
-            // Build proper status chain: skip initial Opened status, show actual settlement changes
+            // Build status chain
             let statusChain = [];
-            if (selectionHistory.length > 0) {
-              // Only add newStatus values (actual settlements), skip initial Opened state
-              selectionHistory.forEach(h => {
-                // Don't add Opened to the chain (it's the initial unsettled state)
+            let firstTime = null;
+            let lastTime = null;
+
+            if (isSingleLine) {
+              // For single-line bets, use all SettlementHistory records
+              allHistoryRecords.forEach(h => {
                 if (h.newStatus !== 'Opened') {
                   statusChain.push(h.newStatus);
                 }
               });
-              // Remove consecutive duplicates
-              statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
+              if (allHistoryRecords.length > 0) {
+                firstTime = allHistoryRecords[0].dateUTC;
+                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+              }
+            } else {
+              // For multi-line bets, try to match by InputId (fallback to all records)
+              const selectionHistory = inputIds
+                .map(idStr => inputIdToHistory[idStr])
+                .filter(h => h)
+                .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+
+              if (selectionHistory.length > 0) {
+                selectionHistory.forEach(h => {
+                  if (h.newStatus !== 'Opened') {
+                    statusChain.push(h.newStatus);
+                  }
+                });
+                firstTime = selectionHistory[0].dateUTC;
+                lastTime = selectionHistory[selectionHistory.length - 1].dateUTC;
+              }
             }
+
+            // Remove consecutive duplicates
+            statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
 
             result.events.push({
               eventName: sel.EventName || '',
@@ -507,8 +540,8 @@
               hasResettlement: hasResettlement,
               inputCount: inputIds.length,
               statusHistory: statusChain,
-              firstSettlementTime: selectionHistory.length > 0 ? selectionHistory[0].dateUTC : null,
-              lastUpdateTime: selectionHistory.length > 0 ? selectionHistory[selectionHistory.length - 1].dateUTC : null,
+              firstSettlementTime: firstTime,
+              lastUpdateTime: lastTime,
             });
           });
         }
