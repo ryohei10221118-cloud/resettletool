@@ -81,6 +81,11 @@
       const [showScrollTop, setShowScrollTop] = useState(false);
       const [showHistoryBubble, setShowHistoryBubble] = useState(false);
 
+      // BO Text mode states
+      const [boTextMode, setBoTextMode] = useState(false);
+      const [boParsedData, setBoParsedData] = useState(null);
+      const [boSelectedEvents, setBoSelectedEvents] = useState({});
+
       // Track scroll position for floating buttons
       const reasonBubbleRef = React.useRef(null);
       const historyBubbleRef = React.useRef(null);
@@ -408,6 +413,7 @@
       const parseBOText = (text) => {
         const result = {
           betId: '',
+          operator: '',
           totalEvents: 0,
           events: [],
           settlementHistory: [],
@@ -418,6 +424,12 @@
         const betIdMatch = text.match(/Bet ID\s*\n?\s*(\d+)/i);
         if (betIdMatch) {
           result.betId = betIdMatch[1];
+        }
+
+        // Extract Operator
+        const operatorMatch = text.match(/Operator\s*\n?\s*([A-Za-z0-9_\-]+)/i);
+        if (operatorMatch) {
+          result.operator = operatorMatch[1];
         }
 
         // Check if it's a combo bet and get event count
@@ -1165,7 +1177,7 @@
               reports = generateCancellationReports(analyzedData);
             }
           } else {
-            // BO Text format
+            // BO Text format - show event selection UI
             const boData = parseBOText(trimmedData);
 
             if (!boData.betId) {
@@ -1176,19 +1188,17 @@
               throw new Error('无法从文字中解析赛事信息，请确认输入格式正确');
             }
 
-            if (analysisType === 'resettlement') {
-              analyzedData = analyzeBOTextResettlements(boData);
-              if (analyzedData.length === 0) {
-                throw new Error('未检测到重新结算记录');
-              }
-              reports = generateResettlementReports(analyzedData);
-            } else {
-              analyzedData = analyzeBOTextCancellations(boData);
-              if (analyzedData.length === 0) {
-                throw new Error('未检测到取消记录');
-              }
-              reports = generateCancellationReports(analyzedData);
-            }
+            // Show selection UI instead of auto-generating
+            setBoParsedData(boData);
+            setBoTextMode(true);
+            // Initialize all events as unchecked
+            const initialSelection = {};
+            boData.events.forEach((_, idx) => {
+              initialSelection[idx] = false;
+            });
+            setBoSelectedEvents(initialSelection);
+            setLoading(false);
+            return; // Don't generate reports yet, wait for user selection
           }
 
           // Store analyzed data and event count for per-event editing
@@ -1215,6 +1225,60 @@
         } finally {
           setLoading(false);
         }
+      };
+
+      // Generate reports from BO text with user-selected events
+      const handleGenerateFromBOSelection = () => {
+        if (!boParsedData) return;
+
+        const selectedIndices = Object.entries(boSelectedEvents)
+          .filter(([_, checked]) => checked)
+          .map(([idx, _]) => parseInt(idx));
+
+        if (selectedIndices.length === 0) {
+          setError('请至少勾选一场赛事');
+          return;
+        }
+
+        setError('');
+        let analyzedData = [];
+
+        selectedIndices.forEach(idx => {
+          const event = boParsedData.events[idx];
+          analyzedData.push({
+            betId: boParsedData.betId,
+            eventName: event.eventName,
+            statusHistory: analysisType === 'resettlement' ? ['Resettled'] : ['Canceled'],
+            eventStatus: analysisType === 'resettlement' ? 'Resettled' : 'Canceled',
+            betStatus: event.status || 'N/A',
+            firstSettlementTime: boParsedData.settlementHistory.length > 0
+              ? boParsedData.settlementHistory[boParsedData.settlementHistory.length - 1].dateUTC
+              : 'N/A',
+            lastUpdateTime: boParsedData.settlementHistory.length > 0
+              ? boParsedData.settlementHistory[0].dateUTC
+              : 'N/A',
+            updateTime: boParsedData.settlementHistory.length > 0
+              ? boParsedData.settlementHistory[0].dateUTC
+              : 'N/A',
+            totalEventsInBet: boParsedData.totalEvents || boParsedData.events.length,
+          });
+        });
+
+        let reports = {};
+        if (analysisType === 'resettlement') {
+          reports = generateResettlementReports(analyzedData);
+        } else {
+          reports = generateCancellationReports(analyzedData);
+        }
+
+        reports.analyzedData = analyzedData;
+        reports.eventCount = analyzedData.length;
+        reports.operator = boParsedData.operator;
+
+        setResults(reports);
+        setBoTextMode(false);
+        setCopyStatus('报告已生成');
+        setTimeout(() => setCopyStatus(''), 2000);
       };
 
       const handleRegenerateWithCustomReasons = () => {
@@ -1313,7 +1377,7 @@
           const reasonText = reasonOptions[reasonKey]?.english || '';
           const date = item.firstSettlementTime ? item.firstSettlementTime.split('T')[0] : '';
 
-          const operator = item.siteId ? (siteIdToOperator[item.siteId] || '') : '';
+          const operator = results.operator || (item.siteId ? (siteIdToOperator[item.siteId] || '') : '');
 
           return [
             operator,
@@ -1456,6 +1520,9 @@
         setResults(null);
         setError('');
         setCopyStatus('');
+        setBoTextMode(false);
+        setBoParsedData(null);
+        setBoSelectedEvents({});
       };
 
       const modalContainerStyle = {
@@ -1835,6 +1902,58 @@
                   {operatorSyncStatus && (
                     <div className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded flex items-center text-sm">
                       {operatorSyncStatus}
+                    </div>
+                  )}
+
+                  {/* BO Text Mode - Event Selection UI */}
+                  {boTextMode && boParsedData && (
+                    <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-yellow-800 mb-3">
+                        📋 请勾选{analysisType === 'resettlement' ? '重新结算' : '取消'}的赛事
+                      </h3>
+
+                      <div className="mb-3 text-sm text-gray-600">
+                        <div><strong>Bet ID:</strong> {boParsedData.betId}</div>
+                        {boParsedData.operator && <div><strong>Operator:</strong> {boParsedData.operator}</div>}
+                        <div><strong>赛事数量:</strong> {boParsedData.events.length}</div>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        {boParsedData.events.map((event, idx) => (
+                          <label key={idx} className="flex items-start gap-3 p-2 bg-white rounded border border-gray-200 cursor-pointer hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={boSelectedEvents[idx] || false}
+                              onChange={(e) => setBoSelectedEvents(prev => ({ ...prev, [idx]: e.target.checked }))}
+                              className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-800">{event.eventName}</div>
+                              <div className="text-xs text-gray-500">状态: {event.status}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleGenerateFromBOSelection}
+                          className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center justify-center"
+                        >
+                          <span className="mr-1">✓</span>
+                          生成报告
+                        </button>
+                        <button
+                          onClick={() => {
+                            setBoTextMode(false);
+                            setBoParsedData(null);
+                            setBoSelectedEvents({});
+                          }}
+                          className="bg-gray-400 text-white py-2 px-4 rounded-md hover:bg-gray-500"
+                        >
+                          取消
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
