@@ -413,13 +413,14 @@
       // SelectionStatus mapping from BTI API
       const selectionStatusMap = {
         0: 'Opened',
-        1: 'Settled',
+        1: 'Lost',
         2: 'Won',
-        3: 'Lost',
+        3: 'Draw',
         4: 'Canceled',
-        5: 'Half Won',
-        6: 'Half Lost',
-        7: 'Void',
+        15: 'Declined',
+        16: 'Half Lost',
+        17: 'Half Won',
+        32: 'Cashout',
       };
 
       // Parse BO Detail JSON format (from bet detail page)
@@ -690,9 +691,9 @@
           'Half Won': '半赢',
           'Half Lost': '半输',
           'Opened': '未结算',
-          'Settled': '已结算',
-          'Void': '作废',
-          'Draw': '平局'
+          'Draw': '平局',
+          'Declined': '拒绝',
+          'Cashout': '提前结算'
         },
         korean: {
           'Won': '승리',
@@ -701,9 +702,9 @@
           'Half Won': '반승',
           'Half Lost': '반패',
           'Opened': '진행중 베팅',
-          'Settled': '정산됨',
-          'Void': '무효',
-          'Draw': '무승부'
+          'Draw': '무승부',
+          'Declined': '거부됨',
+          'Cashout': '캐시아웃'
         }
       };
 
