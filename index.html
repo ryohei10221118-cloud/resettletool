@@ -454,7 +454,14 @@
         }
 
         // Parse ProcessedInputs to determine which selections were resettled
-        const marketIdToInputs = json.ProcessedInputs || {};
+        // Note: InputIds might be large numbers, so we need to handle them carefully
+        const marketIdToInputs = {};
+        if (json.ProcessedInputs) {
+          Object.entries(json.ProcessedInputs).forEach(([marketId, inputIds]) => {
+            // Convert all inputIds to strings for comparison
+            marketIdToInputs[marketId] = inputIds.map(id => String(id));
+          });
+        }
 
         // Parse selections
         if (json.Selections && Array.isArray(json.Selections)) {
@@ -462,17 +469,13 @@
             const status = selectionStatusMap[sel.SelectionStatus] || 'Unknown';
             const marketId = sel.MarketId || '';
 
-            // Get input IDs for this selection's market
+            // Get input IDs for this selection's market (already as strings)
             const inputIds = marketIdToInputs[marketId] || [];
             const hasResettlement = inputIds.length > 1;
 
             // Build status history for this selection from its InputIds
-            // ProcessedInputs has numbers, SettlementHistory.InputId is string - convert both
             const selectionHistory = inputIds
-              .map(id => {
-                const key = String(id);
-                return inputIdToHistory[key];
-              })
+              .map(idStr => inputIdToHistory[idStr])
               .filter(h => h)
               .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
 
