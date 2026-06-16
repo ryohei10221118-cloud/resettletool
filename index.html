@@ -1264,7 +1264,14 @@
           if (isJSON) {
             // Pre-process JSON to handle large numbers (InputIds) that exceed JavaScript's safe integer
             // Convert large numbers to strings before parsing to avoid precision loss
-            const safeJsonData = trimmedData.replace(/:\s*(\d{16,})/g, ': "$1"');
+            // Match standalone large numbers preceded by [ , : or whitespace
+            let safeJsonData = trimmedData;
+            // Keep replacing until no more matches (handles consecutive numbers)
+            let prevData;
+            do {
+              prevData = safeJsonData;
+              safeJsonData = safeJsonData.replace(/([\[,:\s])(\d{16,})([\],\s,}])/g, '$1"$2"$3');
+            } while (safeJsonData !== prevData);
             const parsed = JSON.parse(safeJsonData);
 
             // Check if it's BO Detail JSON (has Selections array)
