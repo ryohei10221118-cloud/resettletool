@@ -476,6 +476,19 @@
               .filter(h => h)
               .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
 
+            // Build proper status chain: first oldStatus, then all newStatus values
+            let statusChain = [];
+            if (selectionHistory.length > 0) {
+              // Start with the first record's oldStatus (initial state)
+              statusChain.push(selectionHistory[0].oldStatus);
+              // Then add each newStatus
+              selectionHistory.forEach(h => {
+                statusChain.push(h.newStatus);
+              });
+              // Remove consecutive duplicates
+              statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
+            }
+
             result.events.push({
               eventName: sel.EventName || '',
               selectionName: sel.SelectionName || '',
@@ -487,7 +500,7 @@
               result: sel.Result || '',
               hasResettlement: hasResettlement,
               inputCount: inputIds.length,
-              statusHistory: selectionHistory.map(h => h.newStatus),
+              statusHistory: statusChain,
               firstSettlementTime: selectionHistory.length > 0 ? selectionHistory[0].dateUTC : null,
               lastUpdateTime: selectionHistory.length > 0 ? selectionHistory[selectionHistory.length - 1].dateUTC : null,
             });
