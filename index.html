@@ -19,10 +19,10 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
   <!-- Babel Standalone for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 
   <!-- Lucide React Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.395.0"></script>
 
   <style>
     body {
@@ -410,20 +410,24 @@
       }, []);
 
       // Selection status mapping: 2=Won, 3=Lost, 4=Canceled, 0=Opened
+      // SelectionStatus mapping from BTI API
       const selectionStatusMap = {
         0: 'Opened',
+        1: 'Lost',
         2: 'Won',
-        3: 'Lost',
+        3: 'Draw',
         4: 'Canceled',
-        5: 'Half Won',
-        6: 'Half Lost',
-        7: 'Void',
+        15: 'Declined',
+        16: 'Half Lost',
+        17: 'Half Won',
+        32: 'Cashout',
       };
 
-      // Parse BO Detail JSON format (from bet detail page)
+      // Parse Kraken JSON format (from bet detail page)
       const parseBODetailJSON = (json) => {
         const result = {
           betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
+          sqlTicketId: String(json.SQLTicketId || json.Bets?.[0]?.TicketId || ''),
           operator: '',
           siteId: json.Customer?.SiteId,
           totalEvents: json.Bets?.[0]?.NumberOfLines || json.Selections?.length || 0,
@@ -454,16 +458,28 @@
         }
 
         // Parse ProcessedInputs to determine which selections were resettled
-        // Note: InputIds might be large numbers, so we need to handle them carefully
         const marketIdToInputs = {};
         if (json.ProcessedInputs) {
           Object.entries(json.ProcessedInputs).forEach(([marketId, inputIds]) => {
-            // Convert all inputIds to strings for comparison
             marketIdToInputs[marketId] = inputIds.map(id => String(id));
           });
         }
-        console.log('marketIdToInputs:', marketIdToInputs);
-        console.log('inputIdToHistory keys:', Object.keys(inputIdToHistory));
+
+        // For single-line bets, use all SettlementHistory records directly
+        // (InputId matching doesn't work reliably as not all InputIds are in ProcessedInputs)
+        const isSingleLine = (json.Bets?.[0]?.NumberOfLines || json.Selections?.length || 1) === 1;
+
+        // Build complete status chain from all SettlementHistory records
+        let allHistoryRecords = [];
+        if (json.SettlementHistory && Array.isArray(json.SettlementHistory)) {
+          allHistoryRecords = json.SettlementHistory
+            .map(h => ({
+              dateUTC: h.DateUpdated,
+              newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
+              oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
+            }))
+            .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+        }
 
         // Parse selections
         if (json.Selections && Array.isArray(json.Selections)) {
@@ -471,36 +487,47 @@
             const status = selectionStatusMap[sel.SelectionStatus] || 'Unknown';
             const marketId = sel.MarketId || '';
 
-            // Get input IDs for this selection's market (already as strings)
+            // Get input IDs for this selection's market
             const inputIds = marketIdToInputs[marketId] || [];
-            const hasResettlement = inputIds.length > 1;
+            // hasResettlement = more than 1 InputId OR more than 1 SettlementHistory record
+            const hasResettlement = inputIds.length > 1 || allHistoryRecords.length > 1;
 
-            console.log('Selection:', sel.EventName, 'MarketId:', marketId, 'InputIds:', inputIds);
-
-            // Build status history for this selection from its InputIds
-            const selectionHistory = inputIds
-              .map(idStr => {
-                const found = inputIdToHistory[idStr];
-                console.log('  Looking for InputId:', idStr, 'Found:', !!found);
-                return found;
-              })
-              .filter(h => h)
-              .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
-
-            console.log('  selectionHistory length:', selectionHistory.length);
-
-            // Build proper status chain: first oldStatus, then all newStatus values
+            // Build status chain
             let statusChain = [];
-            if (selectionHistory.length > 0) {
-              // Start with the first record's oldStatus (initial state)
-              statusChain.push(selectionHistory[0].oldStatus);
-              // Then add each newStatus
-              selectionHistory.forEach(h => {
-                statusChain.push(h.newStatus);
+            let firstTime = null;
+            let lastTime = null;
+
+            if (isSingleLine) {
+              // For single-line bets, use all SettlementHistory records
+              allHistoryRecords.forEach(h => {
+                if (h.newStatus !== 'Opened') {
+                  statusChain.push(h.newStatus);
+                }
               });
-              // Remove consecutive duplicates
-              statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
+              if (allHistoryRecords.length > 0) {
+                firstTime = allHistoryRecords[0].dateUTC;
+                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+              }
+            } else {
+              // For multi-line bets, try to match by InputId (fallback to all records)
+              const selectionHistory = inputIds
+                .map(idStr => inputIdToHistory[idStr])
+                .filter(h => h)
+                .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
+
+              if (selectionHistory.length > 0) {
+                selectionHistory.forEach(h => {
+                  if (h.newStatus !== 'Opened') {
+                    statusChain.push(h.newStatus);
+                  }
+                });
+                firstTime = selectionHistory[0].dateUTC;
+                lastTime = selectionHistory[selectionHistory.length - 1].dateUTC;
+              }
             }
+
+            // Remove consecutive duplicates
+            statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
 
             result.events.push({
               eventName: sel.EventName || '',
@@ -514,8 +541,8 @@
               hasResettlement: hasResettlement,
               inputCount: inputIds.length,
               statusHistory: statusChain,
-              firstSettlementTime: selectionHistory.length > 0 ? selectionHistory[0].dateUTC : null,
-              lastUpdateTime: selectionHistory.length > 0 ? selectionHistory[selectionHistory.length - 1].dateUTC : null,
+              firstSettlementTime: firstTime,
+              lastUpdateTime: lastTime,
             });
           });
         }
@@ -698,7 +725,9 @@
           'Half Won': '半赢',
           'Half Lost': '半输',
           'Opened': '未结算',
-          'Draw': '平局'
+          'Draw': '平局',
+          'Declined': '拒绝',
+          'Cashout': '提前结算'
         },
         korean: {
           'Won': '승리',
@@ -707,7 +736,9 @@
           'Half Won': '반승',
           'Half Lost': '반패',
           'Opened': '진행중 베팅',
-          'Draw': '무승부'
+          'Draw': '무승부',
+          'Declined': '거부됨',
+          'Cashout': '캐시아웃'
         }
       };
 
@@ -1284,19 +1315,114 @@
             } while (safeJsonData !== prevData);
             const parsed = JSON.parse(safeJsonData);
 
-            // Check if it's BO Detail JSON (has Selections array)
+            // Check if it's Kraken JSON (has Selections array)
             if (parsed.Selections && Array.isArray(parsed.Selections)) {
-              // BO Detail JSON format - show selection UI
+              // Kraken JSON format
               const boData = parseBODetailJSON(parsed);
-              setBoParsedData(boData);
-              setBoTextMode(true);
-              const initialSelection = {};
-              boData.events.forEach((_, idx) => {
-                initialSelection[idx] = false;
-              });
-              setBoSelectedEvents(initialSelection);
-              setLoading(false);
-              return;
+
+              // Check based on analysis type
+              if (analysisType === 'resettlement') {
+                // For resettlement: check if any event has multiple status changes
+                const resettledEvents = boData.events.filter(e => e.hasResettlement);
+
+                if (resettledEvents.length > 0) {
+                  // Auto-process all resettled events
+                  const resettledData = resettledEvents.map(event => ({
+                    betId: boData.betId,
+                    sqlTicketId: boData.sqlTicketId,
+                    eventName: event.eventName,
+                    selectionName: event.selectionName || '',
+                    statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
+                    betStatus: event.status || 'N/A',
+                    firstSettlementTime: event.firstSettlementTime || 'N/A',
+                    lastUpdateTime: event.lastUpdateTime || 'N/A',
+                    totalEventsInBet: boData.totalEvents || boData.events.length,
+                    siteId: boData.siteId,
+                    sport: event.sport || '',
+                    league: event.league || '',
+                    market: event.market || '',
+                  }));
+
+                  reports = generateResettlementReports(resettledData);
+                  reports.analyzedData = resettledData;
+                  reports.eventCount = resettledData.length;
+                  reports.operator = boData.operator;
+                  setResults(reports);
+
+                  // Save to query history
+                  const record = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    analysisType,
+                    resettlementReasonTemplate,
+                    cancellationReasonTemplate,
+                    perEventReasons: {},
+                    results: reports
+                  };
+                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
+                  setLoading(false);
+                  return;
+                } else {
+                  // No actual resettlement - show "no records" message
+                  reports = generateResettlementReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
+                }
+              } else {
+                // For cancellation: check if any event has Canceled status
+                const canceledEvents = boData.events.filter(e => e.status === 'Canceled');
+
+                if (canceledEvents.length > 0) {
+                  // Auto-process all canceled events
+                  const canceledData = canceledEvents.map(event => ({
+                    betId: boData.betId,
+                    sqlTicketId: boData.sqlTicketId,
+                    eventName: event.eventName,
+                    selectionName: event.selectionName || '',
+                    eventStatus: 'Canceled',
+                    betStatus: event.status || 'Canceled',
+                    updateTime: event.lastUpdateTime || 'N/A',
+                    totalEventsInBet: boData.totalEvents || boData.events.length,
+                    siteId: boData.siteId,
+                    sport: event.sport || '',
+                    league: event.league || '',
+                    market: event.market || '',
+                  }));
+
+                  reports = generateCancellationReports(canceledData);
+                  reports.analyzedData = canceledData;
+                  reports.eventCount = canceledData.length;
+                  reports.operator = boData.operator;
+                  setResults(reports);
+
+                  // Save to query history
+                  const record = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    analysisType,
+                    resettlementReasonTemplate,
+                    cancellationReasonTemplate,
+                    perEventReasons: {},
+                    results: reports
+                  };
+                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
+                  setLoading(false);
+                  return;
+                } else {
+                  // No canceled events - show "no records" message
+                  reports = generateCancellationReports([]);
+                  reports.analyzedData = [];
+                  reports.eventCount = 0;
+                  setResults(reports);
+                  setLoading(false);
+                  return;
+                }
+              }
             }
 
             // Seamless Tool JSON format
@@ -1419,6 +1545,19 @@
         reports.operator = boParsedData.operator;
 
         setResults(reports);
+
+        // Save to query history
+        const record = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          analysisType,
+          resettlementReasonTemplate,
+          cancellationReasonTemplate,
+          perEventReasons: {},
+          results: reports
+        };
+        setQueryHistory(prev => [record, ...prev].slice(0, 5));
+
         setBoTextMode(false);
         setCopyStatus('报告已生成');
         setTimeout(() => setCopyStatus(''), 2000);
@@ -1524,7 +1663,7 @@
 
           return [
             operator,
-            item.purchaseId || item.betId || '',
+            item.sqlTicketId || item.purchaseId || item.betId || '',
             '',
             item.sport || '',
             item.league || '',
@@ -2622,10 +2761,11 @@
           <div className="mt-8 bg-blue-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-3">使用说明</h3>
             <div className="text-sm text-gray-700 space-y-2">
-              <p><strong>数据格式：</strong>支援两种输入格式：</p>
+              <p><strong>数据格式：</strong>支援三种输入格式：</p>
               <ul className="list-disc list-inside ml-4 space-y-1">
-                <li><strong>JSON 格式：</strong>Seamless Tool 的 JSON 数组数据</li>
-                <li><strong>BO 文字格式：</strong>直接从 BO 注单页面复制的文字（包含 Bet ID、赛事、结算历史）</li>
+                <li><strong>Seamless Tool JSON：</strong>Seamless Tool 的 JSON 数组数据（自动处理）</li>
+                <li><strong>Kraken JSON：</strong>从 Kraken 注单详情页复制的 JSON（含 Selections、SettlementHistory，自动处理）</li>
+                <li><strong>BO 文字格式：</strong>直接从 BO 注单页面复制的文字（需手动勾选赛事）</li>
               </ul>
               <p><strong>重新结算分析：</strong>检测同一LineID在多次结算中状态发生变化的记录</p>
               <p><strong>取消分析：</strong>识别最终状态为"Canceled"的比赛记录</p>
