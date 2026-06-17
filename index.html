@@ -132,105 +132,8 @@
         }
       }, [resettlementReasonTemplate, cancellationReasonTemplate]);
 
-      // Re-analyze raw JSON data when analysis type changes via bubble
-      const prevTypeRef = React.useRef(analysisType);
-      React.useEffect(() => {
-        if (prevTypeRef.current === analysisType) return;
-        prevTypeRef.current = analysisType;
-
-        if (!jsonData.trim() || !results) return;
-
-        try {
-          // Pre-process large numbers
-          let safeJsonData = jsonData.trim();
-          let prevData;
-          do {
-            prevData = safeJsonData;
-            safeJsonData = safeJsonData.replace(/([\[,:\s])(\d{16,})([\],\s,}])/g, '$1"$2"$3');
-          } while (safeJsonData !== prevData);
-          const parsed = JSON.parse(safeJsonData);
-
-          setShowPerEventReasons(false);
-          setPerEventReasons({});
-
-          let reports = {};
-          let analyzedData = [];
-
-          // Check if it's Kraken JSON (has Selections array)
-          if (parsed.Selections && Array.isArray(parsed.Selections)) {
-            const boData = parseBODetailJSON(parsed);
-
-            if (analysisType === 'resettlement') {
-              const resettledEvents = boData.events.filter(e => e.hasResettlement);
-              if (resettledEvents.length > 0) {
-                analyzedData = resettledEvents.map(event => ({
-                  betId: boData.betId,
-                  sqlTicketId: boData.sqlTicketId,
-                  eventName: event.eventName,
-                  selectionName: event.selectionName || '',
-                  statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
-                  betStatus: event.status || 'N/A',
-                  firstSettlementTime: event.firstSettlementTime || 'N/A',
-                  lastUpdateTime: event.lastUpdateTime || 'N/A',
-                  totalEventsInBet: boData.totalEvents || boData.events.length,
-                  siteId: boData.siteId,
-                  sport: event.sport || '',
-                  league: event.league || '',
-                  market: event.market || '',
-                }));
-                reports = generateResettlementReports(analyzedData);
-              } else {
-                reports = generateResettlementReports([]);
-                analyzedData = [];
-              }
-            } else {
-              const canceledEvents = boData.events.filter(e => e.status === 'Canceled');
-              if (canceledEvents.length > 0) {
-                analyzedData = canceledEvents.map(event => ({
-                  betId: boData.betId,
-                  sqlTicketId: boData.sqlTicketId,
-                  eventName: event.eventName,
-                  selectionName: event.selectionName || '',
-                  eventStatus: 'Canceled',
-                  betStatus: event.status || 'Canceled',
-                  updateTime: event.lastUpdateTime || 'N/A',
-                  totalEventsInBet: boData.totalEvents || boData.events.length,
-                  siteId: boData.siteId,
-                  sport: event.sport || '',
-                  league: event.league || '',
-                  market: event.market || '',
-                }));
-                reports = generateCancellationReports(analyzedData);
-              } else {
-                reports = generateCancellationReports([]);
-                analyzedData = [];
-              }
-            }
-            reports.analyzedData = analyzedData;
-            reports.eventCount = analyzedData.length;
-            reports.operator = boData.operator;
-            setResults(reports);
-            return;
-          }
-
-          // Seamless Tool JSON format
-          const data = extractApiRequests(parsed);
-          if (!data) return;
-
-          if (analysisType === 'resettlement') {
-            analyzedData = analyzeResettlements(data);
-            reports = generateResettlementReports(analyzedData);
-          } else {
-            analyzedData = analyzeCancellations(data);
-            reports = generateCancellationReports(analyzedData);
-          }
-          reports.analyzedData = analyzedData;
-          reports.eventCount = analyzedData.length;
-          setResults(reports);
-        } catch (e) {
-          // Ignore parse errors here; user can re-click analyze
-        }
-      }, [analysisType]);
+      // Flag to trigger re-analysis when analysis type changes
+      const [reanalyzeFlag, setReanalyzeFlag] = useState(0);
 
       const [customResettlementReasons, setCustomResettlementReasons] = useState(() => {
         const stored = localStorage.getItem('customResettlementReasons');
@@ -1558,6 +1461,13 @@
         }
       };
 
+      // Re-analyze when reanalyzeFlag changes (triggered by toggle button)
+      React.useEffect(() => {
+        if (reanalyzeFlag > 0 && jsonData.trim()) {
+          handleAnalyze();
+        }
+      }, [reanalyzeFlag]);
+
       // Generate reports from BO text with user-selected events
       const handleGenerateFromBOSelection = () => {
         if (!boParsedData) return;
@@ -2539,6 +2449,8 @@
               const newType = analysisType === 'resettlement' ? 'cancellation' : 'resettlement';
               setAnalysisType(newType);
               setShowReasonBubble(false);
+              // Trigger re-analysis with new type
+              setTimeout(() => setReanalyzeFlag(f => f + 1), 0);
             }}
             style={{
               position: 'fixed',
