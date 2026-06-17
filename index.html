@@ -489,8 +489,6 @@
 
             // Get input IDs for this selection's market
             const inputIds = marketIdToInputs[marketId] || [];
-            // hasResettlement = more than 1 InputId OR more than 1 SettlementHistory record
-            const hasResettlement = inputIds.length > 1 || allHistoryRecords.length > 1;
 
             // Build status chain
             let statusChain = [];
@@ -528,6 +526,9 @@
 
             // Remove consecutive duplicates
             statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
+
+            // hasResettlement = status changed more than once (e.g. Won → Lost → Won)
+            const hasResettlement = statusChain.length > 1;
 
             result.events.push({
               eventName: sel.EventName || '',
