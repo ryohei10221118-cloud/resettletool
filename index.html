@@ -427,7 +427,6 @@
       const parseBODetailJSON = (json) => {
         const result = {
           betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
-          sqlTicketId: String(json.SQLTicketId || json.Bets?.[0]?.TicketId || ''),
           operator: '',
           siteId: json.Customer?.SiteId,
           totalEvents: json.Bets?.[0]?.NumberOfLines || json.Selections?.length || 0,
@@ -1329,7 +1328,6 @@
                   // Auto-process all resettled events
                   const resettledData = resettledEvents.map(event => ({
                     betId: boData.betId,
-                    sqlTicketId: boData.sqlTicketId,
                     eventName: event.eventName,
                     selectionName: event.selectionName || '',
                     statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
@@ -1348,19 +1346,6 @@
                   reports.eventCount = resettledData.length;
                   reports.operator = boData.operator;
                   setResults(reports);
-
-                  // Save to query history
-                  const record = {
-                    id: Date.now(),
-                    timestamp: new Date().toISOString(),
-                    analysisType,
-                    resettlementReasonTemplate,
-                    cancellationReasonTemplate,
-                    perEventReasons: {},
-                    results: reports
-                  };
-                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
-
                   setLoading(false);
                   return;
                 } else {
@@ -1380,7 +1365,6 @@
                   // Auto-process all canceled events
                   const canceledData = canceledEvents.map(event => ({
                     betId: boData.betId,
-                    sqlTicketId: boData.sqlTicketId,
                     eventName: event.eventName,
                     selectionName: event.selectionName || '',
                     eventStatus: 'Canceled',
@@ -1398,19 +1382,6 @@
                   reports.eventCount = canceledData.length;
                   reports.operator = boData.operator;
                   setResults(reports);
-
-                  // Save to query history
-                  const record = {
-                    id: Date.now(),
-                    timestamp: new Date().toISOString(),
-                    analysisType,
-                    resettlementReasonTemplate,
-                    cancellationReasonTemplate,
-                    perEventReasons: {},
-                    results: reports
-                  };
-                  setQueryHistory(prev => [record, ...prev].slice(0, 5));
-
                   setLoading(false);
                   return;
                 } else {
@@ -1545,19 +1516,6 @@
         reports.operator = boParsedData.operator;
 
         setResults(reports);
-
-        // Save to query history
-        const record = {
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          analysisType,
-          resettlementReasonTemplate,
-          cancellationReasonTemplate,
-          perEventReasons: {},
-          results: reports
-        };
-        setQueryHistory(prev => [record, ...prev].slice(0, 5));
-
         setBoTextMode(false);
         setCopyStatus('报告已生成');
         setTimeout(() => setCopyStatus(''), 2000);
@@ -1663,7 +1621,7 @@
 
           return [
             operator,
-            item.sqlTicketId || item.purchaseId || item.betId || '',
+            item.purchaseId || item.betId || '',
             '',
             item.sport || '',
             item.league || '',
