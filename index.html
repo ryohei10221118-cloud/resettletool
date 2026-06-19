@@ -494,11 +494,14 @@
               }
             }
 
-            // Remove consecutive duplicates
+            // Track original history count before deduplication
+            const historyCount = statusChain.length;
+
+            // Remove consecutive duplicates for display
             statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
 
-            // hasResettlement = status changed more than once (e.g. Won → Lost → Won)
-            const hasResettlement = statusChain.length > 1;
+            // hasResettlement = multiple settlement records exist (even if status unchanged, Gain may differ)
+            const hasResettlement = historyCount > 1;
 
             result.events.push({
               eventName: sel.EventName || '',
