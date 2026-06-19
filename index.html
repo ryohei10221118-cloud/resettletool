@@ -521,18 +521,13 @@
                 lastTime = selectionHistory[selectionHistory.length - 1].dateUTC;
               }
 
-              // If this selection is in resettlement, use full history status chain
-              if (isInResettlement && allHistoryRecords.length > 1) {
-                statusChain = [];
-                gainChain = [];
-                allHistoryRecords.forEach(h => {
-                  if (h.newStatus !== 'Opened') {
-                    statusChain.push(h.newStatus);
-                    gainChain.push(h.gain);
-                  }
-                });
-                firstTime = allHistoryRecords[0].dateUTC;
-                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+              // If no status history found but selection is in resettlement, use selection's current status
+              if (statusChain.length === 0 && isInResettlement) {
+                statusChain.push(status);
+                if (allHistoryRecords.length > 0) {
+                  firstTime = allHistoryRecords[0].dateUTC;
+                  lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+                }
               }
 
               // Remove consecutive duplicates for display
