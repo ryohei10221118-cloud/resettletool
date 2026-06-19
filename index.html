@@ -491,17 +491,25 @@
               // hasResettlement = status changed OR gain changed
               hasResettlement = statusChain.length > 1 || hasGainChange;
             } else {
-              // For multi-line bets: check if any InputId appears in non-first SettlementHistory record
-              // This indicates the selection was involved in a resettlement
+              // For multi-line bets: check if there's actual resettlement in SettlementHistory
+              // Resettlement = non-Opened status changed (e.g. Won→Lost) OR Gain changed
+              const nonOpenedRecords = allHistoryRecords.filter(h => h.newStatus !== 'Opened');
+              const ticketHasResettlement = nonOpenedRecords.length > 1 && (
+                // Status changed between non-Opened states
+                nonOpenedRecords.some((h, i) => i > 0 && h.newStatus !== nonOpenedRecords[i - 1].newStatus) ||
+                // Gain changed
+                nonOpenedRecords.some((h, i) => i > 0 && h.gain !== nonOpenedRecords[i - 1].gain)
+              );
+
+              // Get resettlement InputIds (from 2nd non-Opened record onwards)
               const resettlementInputIds = new Set();
-              if (allHistoryRecords.length > 1) {
-                // Get InputIds from 2nd record onwards (these are resettlement records)
-                allHistoryRecords.slice(1).forEach(h => {
+              if (ticketHasResettlement && nonOpenedRecords.length > 1) {
+                nonOpenedRecords.slice(1).forEach(h => {
                   if (h.inputId) resettlementInputIds.add(String(h.inputId));
                 });
               }
 
-              // Check if any of this selection's InputIds are in resettlement records
+              // Check if this selection's InputIds are in resettlement records
               const isInResettlement = inputIds.some(id => resettlementInputIds.has(id));
 
               // Also check via matched history records
@@ -521,25 +529,20 @@
                 lastTime = selectionHistory[selectionHistory.length - 1].dateUTC;
               }
 
-              // If this selection is in resettlement, use full history status chain
-              if (isInResettlement && allHistoryRecords.length > 1) {
-                statusChain = [];
-                gainChain = [];
-                allHistoryRecords.forEach(h => {
-                  if (h.newStatus !== 'Opened') {
-                    statusChain.push(h.newStatus);
-                    gainChain.push(h.gain);
-                  }
-                });
-                firstTime = allHistoryRecords[0].dateUTC;
-                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+              // If no status history found, use selection's current status
+              if (statusChain.length === 0) {
+                statusChain.push(status);
+                if (allHistoryRecords.length > 0) {
+                  firstTime = allHistoryRecords[0].dateUTC;
+                  lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+                }
               }
 
               // Remove consecutive duplicates for display
               statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
               // Check if gain changed
               const hasGainChange = gainChain.length > 1 && gainChain.some((g, i) => i > 0 && g !== gainChain[i - 1]);
-              // hasResettlement = status changed OR gain changed OR InputId in resettlement record
+              // hasResettlement = status changed OR gain changed OR InputId in actual resettlement record
               hasResettlement = statusChain.length > 1 || hasGainChange || isInResettlement;
             }
 
