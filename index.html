@@ -395,6 +395,7 @@
 
       // Parse Kraken JSON format (from bet detail page)
       const parseBODetailJSON = (json) => {
+        const ticketBetStatus = selectionStatusMap[json.Bets?.[0]?.BetStatus] || 'Unknown';
         const result = {
           betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
           sqlTicketId: String(json.SQLTicketId || json.Bets?.[0]?.TicketId || ''),
@@ -404,6 +405,7 @@
           events: [],
           settlementHistory: [],
           isCombo: (json.Bets?.[0]?.NumberOfLines || 0) > 1,
+          ticketBetStatus: ticketBetStatus,
         };
 
         // Get operator from siteId
@@ -517,6 +519,20 @@
                 });
                 firstTime = selectionHistory[0].dateUTC;
                 lastTime = selectionHistory[selectionHistory.length - 1].dateUTC;
+              }
+
+              // If this selection is in resettlement, use full history status chain
+              if (isInResettlement && allHistoryRecords.length > 1) {
+                statusChain = [];
+                gainChain = [];
+                allHistoryRecords.forEach(h => {
+                  if (h.newStatus !== 'Opened') {
+                    statusChain.push(h.newStatus);
+                    gainChain.push(h.gain);
+                  }
+                });
+                firstTime = allHistoryRecords[0].dateUTC;
+                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
               }
 
               // Remove consecutive duplicates for display
@@ -1331,7 +1347,7 @@
                     eventName: event.eventName,
                     selectionName: event.selectionName || '',
                     statusHistory: event.statusHistory.length > 0 ? event.statusHistory : [event.status],
-                    betStatus: event.status || 'N/A',
+                    betStatus: boData.ticketBetStatus || event.status || 'N/A',
                     firstSettlementTime: event.firstSettlementTime || 'N/A',
                     lastUpdateTime: event.lastUpdateTime || 'N/A',
                     totalEventsInBet: boData.totalEvents || boData.events.length,
@@ -1382,7 +1398,7 @@
                     eventName: event.eventName,
                     selectionName: event.selectionName || '',
                     eventStatus: 'Canceled',
-                    betStatus: event.status || 'Canceled',
+                    betStatus: boData.ticketBetStatus || event.status || 'Canceled',
                     updateTime: event.lastUpdateTime || 'N/A',
                     totalEventsInBet: boData.totalEvents || boData.events.length,
                     siteId: boData.siteId,
@@ -1524,7 +1540,7 @@
             selectionName: event.selectionName || '',
             statusHistory: statusHistory,
             eventStatus: event.status || 'N/A',
-            betStatus: event.status || 'N/A',
+            betStatus: boParsedData.ticketBetStatus || event.status || 'N/A',
             firstSettlementTime: event.firstSettlementTime || 'N/A',
             lastUpdateTime: event.lastUpdateTime || 'N/A',
             updateTime: event.lastUpdateTime || 'N/A',
