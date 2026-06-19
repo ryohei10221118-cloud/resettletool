@@ -423,6 +423,7 @@
               newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
               oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
               inputId: h.InputId,
+              gain: h.Gain,
             };
           });
         }
@@ -447,6 +448,7 @@
               dateUTC: h.DateUpdated,
               newStatus: selectionStatusMap[h.NewBetStatus] || String(h.NewBetStatus),
               oldStatus: selectionStatusMap[h.OldBetStatus] || String(h.OldBetStatus),
+              gain: h.Gain,
             }))
             .sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
         }
@@ -460,8 +462,9 @@
             // Get input IDs for this selection's market
             const inputIds = marketIdToInputs[marketId] || [];
 
-            // Build status chain
+            // Build status chain and gain chain
             let statusChain = [];
+            let gainChain = [];
             let firstTime = null;
             let lastTime = null;
 
@@ -470,6 +473,7 @@
               allHistoryRecords.forEach(h => {
                 if (h.newStatus !== 'Opened') {
                   statusChain.push(h.newStatus);
+                  gainChain.push(h.gain);
                 }
               });
               if (allHistoryRecords.length > 0) {
@@ -487,6 +491,7 @@
                 selectionHistory.forEach(h => {
                   if (h.newStatus !== 'Opened') {
                     statusChain.push(h.newStatus);
+                    gainChain.push(h.gain);
                   }
                 });
                 firstTime = selectionHistory[0].dateUTC;
@@ -494,14 +499,14 @@
               }
             }
 
-            // Track original history count before deduplication
-            const historyCount = statusChain.length;
-
             // Remove consecutive duplicates for display
             statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
 
-            // hasResettlement = multiple settlement records exist (even if status unchanged, Gain may differ)
-            const hasResettlement = historyCount > 1;
+            // Check if gain changed
+            const hasGainChange = gainChain.length > 1 && gainChain.some((g, i) => i > 0 && g !== gainChain[i - 1]);
+
+            // hasResettlement = status changed OR gain changed
+            const hasResettlement = statusChain.length > 1 || hasGainChange;
 
             result.events.push({
               eventName: sel.EventName || '',
