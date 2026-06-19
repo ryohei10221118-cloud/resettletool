@@ -497,8 +497,17 @@
             // Remove consecutive duplicates
             statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
 
-            // hasResettlement = status changed more than once (e.g. Won → Lost → Won)
-            const hasResettlement = statusChain.length > 1;
+            // hasResettlement detection:
+            // 1. If statusChain has multiple entries (e.g. Lost → Won) = resettlement
+            // 2. For multi-line bets where SettlementHistory is empty but ProcessedInputs has multiple InputIds
+            //    AND selection is settled (not Opened) = likely resettlement
+            const isSettled = status !== 'Opened' && status !== 'Unknown';
+            const hasResettlement = statusChain.length > 1 ||
+              (statusChain.length === 0 && inputIds.length > 1 && isSettled);
+
+            // If hasResettlement but statusChain is empty, use current status
+            // This happens when SettlementHistory is empty but we detect resettlement via InputIds
+            const finalStatusHistory = statusChain.length > 0 ? statusChain : (hasResettlement ? [status] : []);
 
             result.events.push({
               eventName: sel.EventName || '',
@@ -511,7 +520,7 @@
               result: sel.Result || '',
               hasResettlement: hasResettlement,
               inputCount: inputIds.length,
-              statusHistory: statusChain,
+              statusHistory: finalStatusHistory,
               firstSettlementTime: firstTime,
               lastUpdateTime: lastTime,
             });
