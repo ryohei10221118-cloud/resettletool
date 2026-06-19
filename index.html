@@ -395,6 +395,7 @@
 
       // Parse Kraken JSON format (from bet detail page)
       const parseBODetailJSON = (json) => {
+        const ticketBetStatus = selectionStatusMap[json.Bets?.[0]?.BetStatus] || 'Unknown';
         const result = {
           betId: String(json.Bets?.[0]?.TicketId || json.SQLTicketId || ''),
           sqlTicketId: String(json.SQLTicketId || json.Bets?.[0]?.TicketId || ''),
@@ -404,6 +405,7 @@
           events: [],
           settlementHistory: [],
           isCombo: (json.Bets?.[0]?.NumberOfLines || 0) > 1,
+          ticketBetStatus: ticketBetStatus,
         };
 
         // Get operator from siteId
@@ -1396,7 +1398,7 @@
                     eventName: event.eventName,
                     selectionName: event.selectionName || '',
                     eventStatus: 'Canceled',
-                    betStatus: event.status || 'Canceled',
+                    betStatus: boData.ticketBetStatus || event.status || 'Canceled',
                     updateTime: event.lastUpdateTime || 'N/A',
                     totalEventsInBet: boData.totalEvents || boData.events.length,
                     siteId: boData.siteId,
