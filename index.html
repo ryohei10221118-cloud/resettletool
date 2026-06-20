@@ -554,6 +554,18 @@
                 }
               }
 
+              // If this selection is in resettlement but only has 1 status, use ticket's history
+              if (isInResettlement && statusChain.length <= 1 && allHistoryRecords.length > 1) {
+                statusChain = [];
+                gainChain = [];
+                allHistoryRecords.forEach(h => {
+                  statusChain.push(h.newStatus);
+                  gainChain.push(h.gain);
+                });
+                firstTime = allHistoryRecords[0].dateUTC;
+                lastTime = allHistoryRecords[allHistoryRecords.length - 1].dateUTC;
+              }
+
               // Remove consecutive duplicates for display
               statusChain = statusChain.filter((s, i) => i === 0 || s !== statusChain[i - 1]);
               // Check if gain changed
