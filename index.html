@@ -512,7 +512,21 @@
               hasResettlement = ticketHasResettlement;
             } else {
               // Check if this selection's InputIds are in resettlement records
-              const isInResettlement = inputIds.some(id => resettlementInputIds.has(id));
+              let isInResettlement = inputIds.some(id => resettlementInputIds.has(id));
+
+              // Fallback: if ticket has resettlement but no InputId match (manual resettlement)
+              // Check if this selection's status matches the ticket's final status change
+              if (ticketHasResettlement && !isInResettlement && allHistoryRecords.length > 1) {
+                const lastRecord = allHistoryRecords[allHistoryRecords.length - 1];
+                const lastTicketStatus = lastRecord.newStatus;
+                // If ticket ended as Lost and this selection is Lost, likely this caused it
+                // If ticket ended as Won and this selection is Won (and was previously different), likely involved
+                if (lastTicketStatus === status && lastTicketStatus !== 'Opened') {
+                  // Check if any other selection could have caused this change
+                  // For now, mark as potentially involved in resettlement
+                  isInResettlement = true;
+                }
+              }
 
               // Also check via matched history records
               const selectionHistory = inputIds
