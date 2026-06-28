@@ -1875,13 +1875,15 @@
             setQueryHistory(prev => [record, ...prev].slice(0, 5));
           }
 
-          // Clear current data
+          // Clear current data and reset reasons to default
           setResults(null);
           setError('');
           setCopyStatus('');
           setBoTextMode(false);
           setBoParsedData(null);
           setBoSelectedEvents({});
+          setResettlementReasonTemplate('');
+          setCancellationReasonTemplate('');
 
           // Paste from clipboard
           const text = await navigator.clipboard.readText();
