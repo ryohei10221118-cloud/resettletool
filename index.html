@@ -1859,6 +1859,44 @@
         setBoSelectedEvents({});
       };
 
+      const handlePasteAndUpdate = async () => {
+        try {
+          // Save current data to history if exists
+          if (results && results.analyzedData && results.analyzedData.length > 0) {
+            const record = {
+              id: Date.now(),
+              timestamp: new Date().toISOString(),
+              analysisType,
+              resettlementReasonTemplate,
+              cancellationReasonTemplate,
+              perEventReasons: {},
+              results: results
+            };
+            setQueryHistory(prev => [record, ...prev].slice(0, 5));
+          }
+
+          // Clear current data
+          setResults(null);
+          setError('');
+          setCopyStatus('');
+          setBoTextMode(false);
+          setBoParsedData(null);
+          setBoSelectedEvents({});
+
+          // Paste from clipboard
+          const text = await navigator.clipboard.readText();
+          setJsonData(text);
+
+          // Auto-analyze after a short delay
+          setTimeout(() => {
+            const analyzeBtn = document.querySelector('[data-analyze-btn]');
+            if (analyzeBtn) analyzeBtn.click();
+          }, 100);
+        } catch (err) {
+          setError('无法读取剪贴板，请确认已授予权限');
+        }
+      };
+
       const modalContainerStyle = {
         overflow: 'hidden'
       };
@@ -2198,16 +2236,25 @@
                     />
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
+                      data-analyze-btn
                       onClick={handleAnalyze}
                       disabled={loading}
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {loading ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       ) : null}
                       {loading ? '分析中...' : '开始分析'}
+                    </button>
+
+                    <button
+                      onClick={handlePasteAndUpdate}
+                      className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 flex items-center justify-center"
+                    >
+                      <span className="mr-1">📋</span>
+                      贴上并更新
                     </button>
 
                     <button
