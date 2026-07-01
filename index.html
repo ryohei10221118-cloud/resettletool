@@ -2233,6 +2233,19 @@
                     <textarea
                       value={jsonData}
                       onChange={(e) => setJsonData(e.target.value)}
+                      onPaste={(e) => {
+                        // Get pasted text and auto-analyze
+                        const pastedText = e.clipboardData.getData('text');
+                        if (pastedText) {
+                          e.preventDefault();
+                          setJsonData(pastedText);
+                          // Use setTimeout to ensure state is updated before analyzing
+                          setTimeout(() => {
+                            const analyzeBtn = document.querySelector('[data-analyze-btn]');
+                            if (analyzeBtn) analyzeBtn.click();
+                          }, 50);
+                        }
+                      }}
                       placeholder="请粘贴 Seamless Tool JSON 数据，或直接从 BO 页面复制的注单文字..."
                       className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                     />
