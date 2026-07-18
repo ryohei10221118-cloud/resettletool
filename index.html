@@ -78,6 +78,7 @@
       const [showPerEventReasons, setShowPerEventReasons] = useState(false);
       const [perEventReasons, setPerEventReasons] = useState({});
       const [customReasonTexts, setCustomReasonTexts] = useState({});
+      const [defaultCustomReasonText, setDefaultCustomReasonText] = useState('');
       const [showReasonBubble, setShowReasonBubble] = useState(false);
       const [showScrollTop, setShowScrollTop] = useState(false);
       const [showHistoryBubble, setShowHistoryBubble] = useState(false);
@@ -124,9 +125,9 @@
 
           let reports = {};
           if (analysisType === 'resettlement') {
-            reports = generateResettlementReports(results.analyzedData, null, null);
+            reports = generateResettlementReports(results.analyzedData, null, null, defaultCustomReasonText);
           } else {
-            reports = generateCancellationReports(results.analyzedData, null, null);
+            reports = generateCancellationReports(results.analyzedData, null, null, defaultCustomReasonText);
           }
           reports.analyzedData = results.analyzedData;
           reports.eventCount = results.eventCount;
@@ -1194,7 +1195,7 @@
         return cancellations;
       };
 
-      const generateResettlementReports = (resettlements, customReasons = null, customTexts = null) => {
+      const generateResettlementReports = (resettlements, customReasons = null, customTexts = null, defaultCustomText = '') => {
         if (resettlements.length === 0) {
           return {
             english: 'No resettlement records.',
@@ -1229,9 +1230,10 @@
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : resettlementReasonTemplate;
           let reasonText;
-          if (reasonKey === '_custom_fill' && customTexts && customTexts[index]) {
-            // Use custom text input for all languages
-            reasonText = { english: customTexts[index], chinese: customTexts[index], korean: customTexts[index] };
+          if (reasonKey === '_custom_fill') {
+            // Check for per-event custom text first, then default custom text
+            const customText = (customTexts && customTexts[index]) || defaultCustomText || '';
+            reasonText = { english: customText, chinese: customText, korean: customText };
           } else {
             reasonText = resettlementReasonOptions[reasonKey] || resettlementReasonOptions[''];
           }
@@ -1271,7 +1273,7 @@
         };
       };
 
-      const generateCancellationReports = (cancellations, customReasons = null, customTexts = null) => {
+      const generateCancellationReports = (cancellations, customReasons = null, customTexts = null, defaultCustomText = '') => {
         if (cancellations.length === 0) {
           return {
             english: 'No cancellation records.',
@@ -1302,9 +1304,10 @@
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : cancellationReasonTemplate;
           let reasonText;
-          if (reasonKey === '_custom_fill' && customTexts && customTexts[index]) {
-            // Use custom text input for all languages
-            reasonText = { english: customTexts[index], chinese: customTexts[index], korean: customTexts[index] };
+          if (reasonKey === '_custom_fill') {
+            // Check for per-event custom text first, then default custom text
+            const customText = (customTexts && customTexts[index]) || defaultCustomText || '';
+            reasonText = { english: customText, chinese: customText, korean: customText };
           } else {
             reasonText = cancellationReasonOptions[reasonKey] || cancellationReasonOptions[''];
           }
@@ -1405,7 +1408,7 @@
                     market: event.market || '',
                   }));
 
-                  reports = generateResettlementReports(resettledData);
+                  reports = generateResettlementReports(resettledData, null, null, defaultCustomReasonText);
                   reports.analyzedData = resettledData;
                   reports.eventCount = resettledData.length;
                   reports.operator = boData.operator;
@@ -1427,7 +1430,7 @@
                   return;
                 } else {
                   // No actual resettlement - show "no records" message
-                  reports = generateResettlementReports([]);
+                  reports = generateResettlementReports([], null, null, defaultCustomReasonText);
                   reports.analyzedData = [];
                   reports.eventCount = 0;
                   setResults(reports);
@@ -1455,7 +1458,7 @@
                     market: event.market || '',
                   }));
 
-                  reports = generateCancellationReports(canceledData);
+                  reports = generateCancellationReports(canceledData, null, null, defaultCustomReasonText);
                   reports.analyzedData = canceledData;
                   reports.eventCount = canceledData.length;
                   reports.operator = boData.operator;
@@ -1477,7 +1480,7 @@
                   return;
                 } else {
                   // No canceled events - show "no records" message
-                  reports = generateCancellationReports([]);
+                  reports = generateCancellationReports([], null, null, defaultCustomReasonText);
                   reports.analyzedData = [];
                   reports.eventCount = 0;
                   setResults(reports);
@@ -1496,10 +1499,10 @@
 
             if (analysisType === 'resettlement') {
               analyzedData = analyzeResettlements(data);
-              reports = generateResettlementReports(analyzedData);
+              reports = generateResettlementReports(analyzedData, null, null, defaultCustomReasonText);
             } else {
               analyzedData = analyzeCancellations(data);
-              reports = generateCancellationReports(analyzedData);
+              reports = generateCancellationReports(analyzedData, null, null, defaultCustomReasonText);
             }
           } else {
             // BO Text format - show event selection UI
@@ -1604,9 +1607,9 @@
 
         let reports = {};
         if (analysisType === 'resettlement') {
-          reports = generateResettlementReports(analyzedData);
+          reports = generateResettlementReports(analyzedData, null, null, defaultCustomReasonText);
         } else {
-          reports = generateCancellationReports(analyzedData);
+          reports = generateCancellationReports(analyzedData, null, null, defaultCustomReasonText);
         }
 
         reports.analyzedData = analyzedData;
@@ -1647,9 +1650,9 @@
 
         let reports = {};
         if (analysisType === 'resettlement') {
-          reports = generateResettlementReports(results.analyzedData, customReasonsArray, customTextsArray);
+          reports = generateResettlementReports(results.analyzedData, customReasonsArray, customTextsArray, defaultCustomReasonText);
         } else {
-          reports = generateCancellationReports(results.analyzedData, customReasonsArray, customTextsArray);
+          reports = generateCancellationReports(results.analyzedData, customReasonsArray, customTextsArray, defaultCustomReasonText);
         }
 
         // Preserve analyzed data
@@ -2202,6 +2205,15 @@
                           );
                         })}
                       </select>
+                      {resettlementReasonTemplate === '_custom_fill' && (
+                        <input
+                          type="text"
+                          value={defaultCustomReasonText}
+                          onChange={(e) => setDefaultCustomReasonText(e.target.value)}
+                          placeholder="请输入自定义原因..."
+                          className="w-full mt-2 px-3 py-2 border border-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50"
+                        />
+                      )}
                     </div>
                   )}
 
@@ -2227,6 +2239,15 @@
                           );
                         })}
                       </select>
+                      {cancellationReasonTemplate === '_custom_fill' && (
+                        <input
+                          type="text"
+                          value={defaultCustomReasonText}
+                          onChange={(e) => setDefaultCustomReasonText(e.target.value)}
+                          placeholder="请输入自定义原因..."
+                          className="w-full mt-2 px-3 py-2 border border-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50"
+                        />
+                      )}
                     </div>
                   )}
 
