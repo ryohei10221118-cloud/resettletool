@@ -77,6 +77,7 @@
       const [deleteConfirmKey, setDeleteConfirmKey] = useState(null);
       const [showPerEventReasons, setShowPerEventReasons] = useState(false);
       const [perEventReasons, setPerEventReasons] = useState({});
+      const [customReasonTexts, setCustomReasonTexts] = useState({});
       const [showReasonBubble, setShowReasonBubble] = useState(false);
       const [showScrollTop, setShowScrollTop] = useState(false);
       const [showHistoryBubble, setShowHistoryBubble] = useState(false);
@@ -119,12 +120,13 @@
         if (changed && results && results.analyzedData) {
           // Clear per-event overrides — use the latest R bubble selection for all events
           setPerEventReasons({});
+          setCustomReasonTexts({});
 
           let reports = {};
           if (analysisType === 'resettlement') {
-            reports = generateResettlementReports(results.analyzedData, null);
+            reports = generateResettlementReports(results.analyzedData, null, null);
           } else {
-            reports = generateCancellationReports(results.analyzedData, null);
+            reports = generateCancellationReports(results.analyzedData, null, null);
           }
           reports.analyzedData = results.analyzedData;
           reports.eventCount = results.eventCount;
@@ -1192,7 +1194,7 @@
         return cancellations;
       };
 
-      const generateResettlementReports = (resettlements, customReasons = null) => {
+      const generateResettlementReports = (resettlements, customReasons = null, customTexts = null) => {
         if (resettlements.length === 0) {
           return {
             english: 'No resettlement records.',
@@ -1226,7 +1228,13 @@
 
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : resettlementReasonTemplate;
-          const reasonText = resettlementReasonOptions[reasonKey];
+          let reasonText;
+          if (reasonKey === '_custom_fill' && customTexts && customTexts[index]) {
+            // Use custom text input for all languages
+            reasonText = { english: customTexts[index], chinese: customTexts[index], korean: customTexts[index] };
+          } else {
+            reasonText = resettlementReasonOptions[reasonKey] || resettlementReasonOptions[''];
+          }
 
           const eventFieldEN = resettlements.length > 1 ? `Event${index + 1}` : 'Event';
           const eventFieldCN = resettlements.length > 1 ? `赛事${index + 1}` : '赛事';
@@ -1263,7 +1271,7 @@
         };
       };
 
-      const generateCancellationReports = (cancellations, customReasons = null) => {
+      const generateCancellationReports = (cancellations, customReasons = null, customTexts = null) => {
         if (cancellations.length === 0) {
           return {
             english: 'No cancellation records.',
@@ -1293,7 +1301,13 @@
         cancellations.forEach((item, index) => {
           // Use custom reason for this event if provided, otherwise use default
           const reasonKey = customReasons && customReasons[index] !== undefined ? customReasons[index] : cancellationReasonTemplate;
-          const reasonText = cancellationReasonOptions[reasonKey];
+          let reasonText;
+          if (reasonKey === '_custom_fill' && customTexts && customTexts[index]) {
+            // Use custom text input for all languages
+            reasonText = { english: customTexts[index], chinese: customTexts[index], korean: customTexts[index] };
+          } else {
+            reasonText = cancellationReasonOptions[reasonKey] || cancellationReasonOptions[''];
+          }
 
           const eventFieldEN = cancellations.length > 1 ? `Event${index + 1}` : 'Event';
           const eventFieldCN = cancellations.length > 1 ? `赛事${index + 1}` : '赛事';
@@ -1340,6 +1354,7 @@
         setError('');
         setShowPerEventReasons(false);
         setPerEventReasons({});
+        setCustomReasonTexts({});
 
         try {
           let reports = {};
@@ -1625,11 +1640,16 @@
           customReasonsArray[parseInt(index)] = perEventReasons[index];
         });
 
+        const customTextsArray = {};
+        Object.keys(customReasonTexts).forEach(index => {
+          customTextsArray[parseInt(index)] = customReasonTexts[index];
+        });
+
         let reports = {};
         if (analysisType === 'resettlement') {
-          reports = generateResettlementReports(results.analyzedData, customReasonsArray);
+          reports = generateResettlementReports(results.analyzedData, customReasonsArray, customTextsArray);
         } else {
-          reports = generateCancellationReports(results.analyzedData, customReasonsArray);
+          reports = generateCancellationReports(results.analyzedData, customReasonsArray, customTextsArray);
         }
 
         // Preserve analyzed data
@@ -2171,7 +2191,7 @@
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
+                        <option value="_custom_fill">✏️ 自行填写</option>
                         {Object.keys(resettlementReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                           const reason = resettlementReasonOptions[key];
                           const isCustom = !defaultResettlementReasons[key];
@@ -2196,7 +2216,7 @@
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                        <option value="_custom_fill">✏️ 自行填写 (留空)</option>
+                        <option value="_custom_fill">✏️ 自行填写</option>
                         {Object.keys(cancellationReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                           const reason = cancellationReasonOptions[key];
                           const isCustom = !defaultCancellationReasons[key];
@@ -2501,7 +2521,7 @@
                                 {analysisType === 'resettlement' ? (
                                   <>
                                     <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
+                                    <option value="_custom_fill">✏️ 自行填写</option>
                                     {Object.keys(resettlementReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                                       const reason = resettlementReasonOptions[key];
                                       const isCustom = !defaultResettlementReasons[key];
@@ -2515,7 +2535,7 @@
                                 ) : (
                                   <>
                                     <option value="">Will provide after confirming - 确认后提供 - 확인 후 제공하겠습니다 (预设)</option>
-                                    <option value="_custom_fill">✏️ 自行填写 (留空)</option>
+                                    <option value="_custom_fill">✏️ 自行填写</option>
                                     {Object.keys(cancellationReasonOptions).filter(k => k !== '' && k !== '_custom_fill').map(key => {
                                       const reason = cancellationReasonOptions[key];
                                       const isCustom = !defaultCancellationReasons[key];
@@ -2528,6 +2548,15 @@
                                   </>
                                 )}
                               </select>
+                              {perEventReasons[index] === '_custom_fill' && (
+                                <input
+                                  type="text"
+                                  value={customReasonTexts[index] || ''}
+                                  onChange={(e) => setCustomReasonTexts({ ...customReasonTexts, [index]: e.target.value })}
+                                  placeholder="请输入自定义原因..."
+                                  className="w-full mt-2 px-3 py-2 text-sm border border-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50"
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
@@ -2649,7 +2678,7 @@
                       const isActive = currentValue === key;
                       let label;
                       if (key === '') label = '确认后提供 (预设)';
-                      else if (key === '_custom_fill') label = '✏️ 自行填写 (留空)';
+                      else if (key === '_custom_fill') label = '✏️ 自行填写';
                       else label = (isCustom ? '⭐ ' : '') + (reason?.english || key);
 
                       return (
