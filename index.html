@@ -2705,7 +2705,10 @@
                       return (
                         <button
                           key={key}
-                          onClick={() => { setter(key); setShowReasonBubble(false); }}
+                          onClick={() => {
+                            setter(key);
+                            if (key !== '_custom_fill') setShowReasonBubble(false);
+                          }}
                           style={{
                             padding: '8px 12px',
                             fontSize: '12px',
@@ -2725,6 +2728,46 @@
                     });
                   })()}
                 </div>
+                {/* Custom text input when _custom_fill is selected */}
+                {((analysisType === 'resettlement' && resettlementReasonTemplate === '_custom_fill') ||
+                  (analysisType === 'cancellation' && cancellationReasonTemplate === '_custom_fill')) && (
+                  <div style={{ marginTop: '10px' }}>
+                    <input
+                      type="text"
+                      value={defaultCustomReasonText}
+                      onChange={(e) => setDefaultCustomReasonText(e.target.value)}
+                      placeholder="请输入自定义原因..."
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        border: '2px solid #F97316',
+                        borderRadius: '8px',
+                        background: '#FFF7ED',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => setShowReasonBubble(false)}
+                      style={{
+                        width: '100%',
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#10B981',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      ✓ 确认
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             <button
