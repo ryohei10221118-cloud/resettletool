@@ -2735,7 +2735,23 @@
                     <input
                       type="text"
                       value={defaultCustomReasonText}
-                      onChange={(e) => setDefaultCustomReasonText(e.target.value)}
+                      onChange={(e) => {
+                        const newText = e.target.value;
+                        setDefaultCustomReasonText(newText);
+                        // Instantly regenerate report
+                        if (results && results.analyzedData) {
+                          let reports = {};
+                          if (analysisType === 'resettlement') {
+                            reports = generateResettlementReports(results.analyzedData, null, null, newText);
+                          } else {
+                            reports = generateCancellationReports(results.analyzedData, null, null, newText);
+                          }
+                          reports.analyzedData = results.analyzedData;
+                          reports.eventCount = results.eventCount;
+                          reports.operator = results.operator;
+                          setResults(reports);
+                        }
+                      }}
                       placeholder="请输入自定义原因..."
                       style={{
                         width: '100%',
@@ -2748,38 +2764,6 @@
                         boxSizing: 'border-box'
                       }}
                     />
-                    <button
-                      onClick={() => {
-                        setShowReasonBubble(false);
-                        // Regenerate report with the custom text
-                        if (results && results.analyzedData) {
-                          let reports = {};
-                          if (analysisType === 'resettlement') {
-                            reports = generateResettlementReports(results.analyzedData, null, null, defaultCustomReasonText);
-                          } else {
-                            reports = generateCancellationReports(results.analyzedData, null, null, defaultCustomReasonText);
-                          }
-                          reports.analyzedData = results.analyzedData;
-                          reports.eventCount = results.eventCount;
-                          reports.operator = results.operator;
-                          setResults(reports);
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        marginTop: '8px',
-                        padding: '8px 12px',
-                        fontSize: '12px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: '#10B981',
-                        color: 'white',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      ✓ 确认并更新报告
-                    </button>
                   </div>
                 )}
               </div>
