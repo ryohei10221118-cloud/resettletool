@@ -2747,10 +2747,24 @@
                         outline: 'none',
                         boxSizing: 'border-box'
                       }}
-                      autoFocus
                     />
                     <button
-                      onClick={() => setShowReasonBubble(false)}
+                      onClick={() => {
+                        setShowReasonBubble(false);
+                        // Regenerate report with the custom text
+                        if (results && results.analyzedData) {
+                          let reports = {};
+                          if (analysisType === 'resettlement') {
+                            reports = generateResettlementReports(results.analyzedData, null, null, defaultCustomReasonText);
+                          } else {
+                            reports = generateCancellationReports(results.analyzedData, null, null, defaultCustomReasonText);
+                          }
+                          reports.analyzedData = results.analyzedData;
+                          reports.eventCount = results.eventCount;
+                          reports.operator = results.operator;
+                          setResults(reports);
+                        }
+                      }}
                       style={{
                         width: '100%',
                         marginTop: '8px',
@@ -2764,7 +2778,7 @@
                         fontWeight: 600
                       }}
                     >
-                      ✓ 确认
+                      ✓ 确认并更新报告
                     </button>
                   </div>
                 )}
