@@ -2684,7 +2684,7 @@
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>
                   {analysisType === 'resettlement' ? '⚡ 快速选择重新结算原因' : '⚡ 快速选择取消原因'}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '50vh', overflowY: 'auto', paddingRight: '4px' }}>
                   {(() => {
                     const options = analysisType === 'resettlement' ? resettlementReasonOptions : cancellationReasonOptions;
                     const defaults = analysisType === 'resettlement' ? defaultResettlementReasons : defaultCancellationReasons;
