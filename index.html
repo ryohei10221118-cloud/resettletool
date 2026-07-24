@@ -2703,69 +2703,66 @@
                       else label = (isCustom ? '⭐ ' : '') + (reason?.english || key);
 
                       return (
-                        <button
-                          key={key}
-                          onClick={() => {
-                            setter(key);
-                            if (key !== '_custom_fill') setShowReasonBubble(false);
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            fontSize: '12px',
-                            borderRadius: '8px',
-                            border: isActive ? '2px solid #3B82F6' : '1px solid #E5E7EB',
-                            background: isActive ? '#EFF6FF' : '#F9FAFB',
-                            color: '#374151',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            fontWeight: isActive ? 600 : 400,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {isActive && '✓ '}{label}
-                        </button>
+                        <React.Fragment key={key}>
+                          <button
+                            onClick={() => {
+                              setter(key);
+                              if (key !== '_custom_fill') setShowReasonBubble(false);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              border: isActive ? '2px solid #3B82F6' : '1px solid #E5E7EB',
+                              background: isActive ? '#EFF6FF' : '#F9FAFB',
+                              color: '#374151',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              fontWeight: isActive ? 600 : 400,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {isActive && '✓ '}{label}
+                          </button>
+                          {/* Show input right after _custom_fill when selected */}
+                          {key === '_custom_fill' && isActive && (
+                            <input
+                              type="text"
+                              value={defaultCustomReasonText}
+                              onChange={(e) => {
+                                const newText = e.target.value;
+                                setDefaultCustomReasonText(newText);
+                                if (results && results.analyzedData) {
+                                  let reports = {};
+                                  if (analysisType === 'resettlement') {
+                                    reports = generateResettlementReports(results.analyzedData, null, null, newText);
+                                  } else {
+                                    reports = generateCancellationReports(results.analyzedData, null, null, newText);
+                                  }
+                                  reports.analyzedData = results.analyzedData;
+                                  reports.eventCount = results.eventCount;
+                                  reports.operator = results.operator;
+                                  setResults(reports);
+                                }
+                              }}
+                              placeholder="请输入自定义原因..."
+                              style={{
+                                width: '100%',
+                                padding: '10px 12px',
+                                fontSize: '12px',
+                                border: '2px solid #F97316',
+                                borderRadius: '8px',
+                                background: '#FFF7ED',
+                                outline: 'none',
+                                boxSizing: 'border-box'
+                              }}
+                            />
+                          )}
+                        </React.Fragment>
                       );
                     });
                   })()}
                 </div>
-                {/* Custom text input when _custom_fill is selected */}
-                {((analysisType === 'resettlement' && resettlementReasonTemplate === '_custom_fill') ||
-                  (analysisType === 'cancellation' && cancellationReasonTemplate === '_custom_fill')) && (
-                  <div style={{ marginTop: '10px' }}>
-                    <input
-                      type="text"
-                      value={defaultCustomReasonText}
-                      onChange={(e) => {
-                        const newText = e.target.value;
-                        setDefaultCustomReasonText(newText);
-                        // Instantly regenerate report
-                        if (results && results.analyzedData) {
-                          let reports = {};
-                          if (analysisType === 'resettlement') {
-                            reports = generateResettlementReports(results.analyzedData, null, null, newText);
-                          } else {
-                            reports = generateCancellationReports(results.analyzedData, null, null, newText);
-                          }
-                          reports.analyzedData = results.analyzedData;
-                          reports.eventCount = results.eventCount;
-                          reports.operator = results.operator;
-                          setResults(reports);
-                        }
-                      }}
-                      placeholder="请输入自定义原因..."
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '12px',
-                        border: '2px solid #F97316',
-                        borderRadius: '8px',
-                        background: '#FFF7ED',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                )}
               </div>
             )}
             <button
