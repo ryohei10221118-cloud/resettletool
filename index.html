@@ -1098,6 +1098,8 @@
               const branchName = selection.getAttribute('BranchName') || '';
               const leagueName = selection.getAttribute('LeagueName') || '';
               const eventTypeName = selection.getAttribute('EventTypeName') || '';
+              const yourBet = selection.getAttribute('YourBet') || '';
+              const selectionDecimalOdds = parseFloat(selection.getAttribute('DecimalOdds') || '0');
 
               const changes = selection.getElementsByTagName('Change');
               Array.from(changes).forEach(change => {
@@ -1106,8 +1108,10 @@
 
                 const bets = change.getElementsByTagName('Bet');
                 let betId = '';
+                let betOdds = 0;
                 if (bets.length > 0) {
                   betId = bets[0].getAttribute('ID');
+                  betOdds = parseFloat(bets[0].getAttribute('Odds') || '0');
                 }
 
                 // Selection → Selections → Purchase (has PurchaseID)
@@ -1121,10 +1125,13 @@
                     branchName,
                     leagueName,
                     eventTypeName,
+                    yourBet,
+                    selectionDecimalOdds,
                     siteId: record.siteid,
                     statusHistory: [],
                     betId: betId !== '0' ? betId : '',
-                    purchaseId
+                    purchaseId,
+                    betOdds: 0
                   });
                 }
 
@@ -1134,6 +1141,11 @@
                   dateUTC,
                   recordDate: record.creationdate
                 });
+
+                // Track the settlement odds from Bet element
+                if (betOdds > 0) {
+                  tracking.betOdds = betOdds;
+                }
 
                 if (betId !== '0' && !tracking.betId) {
                   tracking.betId = betId;
@@ -1165,7 +1177,29 @@
             tracking.statusHistory.sort((a, b) => new Date(a.dateUTC) - new Date(b.dateUTC));
             const lastStatus = tracking.statusHistory[tracking.statusHistory.length - 1];
 
+            let isCancellation = false;
+            let isPartialVirtualCombo = false;
+
+            // Check 1: Explicit Canceled status
             if (lastStatus.newStatus === 'Canceled') {
+              isCancellation = true;
+            }
+
+            // Check 2: Virtual combo partial cancellation detection
+            // If EventTypeName or YourBet contains "|", it's a virtual combo
+            // If selection odds != bet settlement odds, one market was canceled
+            const isVirtualCombo = (tracking.eventTypeName && tracking.eventTypeName.includes('|')) ||
+                                   (tracking.yourBet && tracking.yourBet.includes('|'));
+            if (isVirtualCombo && tracking.selectionDecimalOdds > 0 && tracking.betOdds > 0) {
+              // Compare with tolerance for floating point
+              const oddsDiff = Math.abs(tracking.selectionDecimalOdds - tracking.betOdds);
+              if (oddsDiff > 0.01) {
+                isCancellation = true;
+                isPartialVirtualCombo = true;
+              }
+            }
+
+            if (isCancellation) {
               let finalBetStatus = 'N/A';
               if (tracking.betId && betStatusTracking.has(tracking.betId)) {
                 const betStatuses = betStatusTracking.get(tracking.betId);
@@ -1183,10 +1217,13 @@
                 league: tracking.leagueName,
                 market: tracking.eventTypeName,
                 siteId: tracking.siteId,
-                eventStatus: 'Canceled',
+                eventStatus: isPartialVirtualCombo ? 'Partial Canceled' : 'Canceled',
                 betStatus: finalBetStatus,
                 updateTime: lastStatus.dateUTC,
-                totalEventsInBet: tracking.betId ? Math.max(betEventCount.get(tracking.betId) || 1, betNumberOfLines.get(tracking.betId) || 1) : 1
+                totalEventsInBet: tracking.betId ? Math.max(betEventCount.get(tracking.betId) || 1, betNumberOfLines.get(tracking.betId) || 1) : 1,
+                isPartialVirtualCombo,
+                originalOdds: tracking.selectionDecimalOdds,
+                settlementOdds: tracking.betOdds
               });
             }
           }
